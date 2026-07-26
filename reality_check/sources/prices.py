@@ -76,8 +76,25 @@ def cross_check_note(onchain_quantity: float, market: MarketSupply, tolerance: f
 class MarketDataReading:
     price_usd: float
     total_supply: float
+    market_cap: float | None
     quality: DataQuality
     note: str
+
+
+def consistency_note(reading: MarketDataReading, tolerance: float = 0.02) -> str:
+    """Sanity-checks `total_supply x price` against CoinGecko's own reported
+    `market_cap` from the same API response — since both figures come from the same
+    source, this can't catch a wrong source, only internal inconsistency (e.g. one
+    field lagging the other, or a bad response) that a single-field read wouldn't."""
+    if reading.market_cap is None or reading.quality is DataQuality.FALLBACK:
+        return "consistency check unavailable (no market cap in response, or using fallback)"
+    implied = reading.total_supply * reading.price_usd
+    if implied <= 0:
+        return "consistency check skipped (zero implied value)"
+    diff = abs(implied - reading.market_cap) / implied
+    if diff > tolerance:
+        return f"⚠ total_supply×price differs from CoinGecko's own market_cap by {diff:.1%}"
+    return f"✓ total_supply×price matches CoinGecko's own market_cap (within {diff:.1%})"
 
 
 def fetch_market_data(
@@ -106,6 +123,7 @@ def fetch_market_data(
             coingecko_id: MarketDataReading(
                 price_usd=fallback_prices[coingecko_id],
                 total_supply=fallback_supplies[coingecko_id],
+                market_cap=None,
                 quality=DataQuality.FALLBACK,
                 note=note,
             )
@@ -121,12 +139,18 @@ def fetch_market_data(
             readings[coingecko_id] = MarketDataReading(
                 price_usd=fallback_prices[coingecko_id],
                 total_supply=fallback_supplies[coingecko_id],
+                market_cap=None,
                 quality=DataQuality.FALLBACK,
                 note=f"'{coingecko_id}' missing from CoinGecko response; used fallback",
             )
         else:
+            market_cap = row.get("market_cap")
             readings[coingecko_id] = MarketDataReading(
-                price_usd=float(price), total_supply=float(supply), quality=DataQuality.LIVE, note=""
+                price_usd=float(price),
+                total_supply=float(supply),
+                market_cap=float(market_cap) if market_cap is not None else None,
+                quality=DataQuality.LIVE,
+                note="",
             )
     return readings
 

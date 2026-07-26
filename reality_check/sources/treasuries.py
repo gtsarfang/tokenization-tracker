@@ -15,7 +15,7 @@ import requests
 
 from config import AppConfig
 from reality_check.models import AssetClassResult, ComponentValue, DataQuality, TotalValue
-from reality_check.sources.prices import MarketDataReading, fetch_market_data
+from reality_check.sources.prices import MarketDataReading, consistency_note, fetch_market_data
 
 _DEBT_TO_PENNY_URL = (
     "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny"
@@ -64,6 +64,7 @@ class TreasurySource:
         components = []
         for token in self._config.treasuries.tokens:
             reading = market[token.coingecko_id]
+            check = consistency_note(reading)
             components.append(
                 ComponentValue(
                     symbol=token.symbol,
@@ -72,7 +73,7 @@ class TreasurySource:
                     value_usd=reading.total_supply * reading.price_usd,
                     supply_quality=reading.quality,
                     price_quality=reading.quality,
-                    note=reading.note,
+                    note="; ".join(n for n in (reading.note, check) if n),
                     display_name=f"{token.issuer} {token.symbol}",
                     backing=token.backing,
                 )
@@ -118,7 +119,13 @@ class TreasurySource:
             "on every refresh rather than stored as a periodically-updated "
             "constant.\n\n"
             "Any value that falls back to a manually configured constant (CoinGecko "
-            "or Treasury API failure) is marked stale — see the badge above if so."
+            "or Treasury API failure) is marked stale — see the badge above if so.\n\n"
+            "**Verification** — unlike gold, there's no independent on-chain figure "
+            "to cross-check against here (CoinGecko's aggregate *is* the primary "
+            "source). Instead, `total_supply × price` is checked against "
+            "CoinGecko's own reported `market_cap` from the same API response — "
+            "this can't catch a wrong source, only an internally inconsistent one "
+            "(e.g. a stale or malformed field)."
         )
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:

@@ -21,6 +21,13 @@ load_dotenv()
 TROY_OZ_PER_TONNE = 32_150.7466
 
 
+def format_tonnes(troy_oz: float) -> str:
+    tonnes = troy_oz / TROY_OZ_PER_TONNE
+    if tonnes >= 1:
+        return f"{tonnes:,.1f} t"
+    return f"{tonnes * 1000:,.1f} kg"
+
+
 @dataclass(frozen=True)
 class TokenConfig:
     symbol: str
@@ -43,6 +50,13 @@ class GoldConfig:
 
 
 @dataclass(frozen=True)
+class SilverConfig:
+    total_tonnes: float
+    source_citation: str
+    tokens: tuple[TokenConfig, ...]
+
+
+@dataclass(frozen=True)
 class TreasuryConfig:
     # Fallback only — the live total is fetched from the US Treasury's own API
     # (see sources/treasuries.py) since, unlike gold's above-ground stock, it
@@ -60,6 +74,7 @@ class AppConfig:
     coingecko_timeout_seconds: float
     db_path: str
     gold: GoldConfig
+    silver: SilverConfig
     treasuries: TreasuryConfig
 
 
@@ -107,6 +122,49 @@ _GOLD_CONFIG = GoldConfig(
         "retrieved 2026-07-25"
     ),
     tokens=(_PAXG, _XAUT),
+)
+
+
+# --- KAG contract facts (not user-tunable via env) --------------------------------
+# Kinesis Silver (KAG) is the dominant tokenized silver product by a wide margin
+# (~$190-420M market cap depending on date) — no second silver token comes close
+# enough to be worth including yet, unlike gold's PAXG+XAUT pair.
+
+_KAG = TokenConfig(
+    symbol="KAG",
+    issuer="Kinesis",
+    backing=(
+        "1 troy oz of allocated silver (999+ fine), stored in fully insured, "
+        "LBMA-standard vaults across six continents. Redeemable for physical "
+        "delivery or vault withdrawal."
+    ),
+    contract_address="0x56BA8B58B7d1f6D384a1c4dd553f39ebc8741B8e",
+    expected_decimals=18,
+    coingecko_id="kinesis-silver",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/kinesis-silver if this drifts too far from live.
+    fallback_supply=3_777_096.93,
+    fallback_price_usd=50.85,
+)
+
+_SILVER_CONFIG = SilverConfig(
+    # Total above-ground silver is far murkier than gold's: the Silver Institute's
+    # "identifiable above-ground stocks" (investment bars/coins only) is ~79,000
+    # tonnes, but excludes jewelry/silverware/industrial stock — ~20x smaller than
+    # broader estimates. To stay comparable with gold's WGC figure (which *does*
+    # include jewelry and industrial holdings), this uses the broader estimate:
+    # CPM Group / USGS-derived total above-ground silver (mined minus losses),
+    # ~1.7 million tonnes as of 2018 (most recent widely-cited comprehensive
+    # estimate), retrieved 2026-07-26.
+    # https://cpmgroup.com/how-much-silver-is-above-ground/
+    total_tonnes=1_700_000.0,
+    source_citation=(
+        "CPM Group, comprehensive above-ground silver estimate (~2018 data), "
+        "retrieved 2026-07-26 — chosen over the Silver Institute's narrower "
+        "'identifiable above-ground stocks' figure (~20x smaller) for "
+        "comparability with gold's comprehensive WGC total"
+    ),
+    tokens=(_KAG,),
 )
 
 
@@ -172,5 +230,6 @@ def load_config() -> AppConfig:
         ),
         db_path=os.environ.get("RC_DB_PATH", "data/reality_check.db"),
         gold=_GOLD_CONFIG,
+        silver=_SILVER_CONFIG,
         treasuries=_TREASURY_CONFIG,
     )

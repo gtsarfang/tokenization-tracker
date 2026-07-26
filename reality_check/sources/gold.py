@@ -3,7 +3,7 @@ gold value. Reference implementation of AssetClassSource for future asset classe
 
 from __future__ import annotations
 
-from config import TROY_OZ_PER_TONNE, AppConfig
+from config import TROY_OZ_PER_TONNE, AppConfig, format_tonnes
 from reality_check.models import AssetClassResult, ComponentValue, TotalValue
 from reality_check.sources.onchain import get_web3, read_erc20_total_supply
 from reality_check.sources.prices import (
@@ -16,13 +16,6 @@ from reality_check.sources.prices import (
 # PAXG is redeemable 1:1 for a troy ounce of LBMA-good-delivery gold, so its market
 # price is used as a live proxy for spot gold price (avoids a separate metals API).
 _GOLD_SPOT_PROXY_COINGECKO_ID = "pax-gold"
-
-
-def _format_tonnes(troy_oz: float) -> str:
-    tonnes = troy_oz / TROY_OZ_PER_TONNE
-    if tonnes >= 1:
-        return f"{tonnes:,.1f} t"
-    return f"{tonnes * 1000:,.1f} kg"
 
 
 class GoldSource:
@@ -112,7 +105,7 @@ class GoldSource:
         # quantities already fetched double as the tokenized weight — no extra fetch.
         tokenized_oz = sum(c.quantity for c in result.components)
         total_oz = self._config.gold.total_tonnes * TROY_OZ_PER_TONNE
-        return (_format_tonnes(tokenized_oz), _format_tonnes(total_oz))
+        return (format_tonnes(tokenized_oz), format_tonnes(total_oz))
 
     def _get_prices(self) -> dict[str, PriceReading]:
         if self._price_cache is None:

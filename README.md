@@ -8,8 +8,12 @@ a fraction this small (tokenized gold is ~0.02% of all gold) without the fill be
 imperceptible, so the comparison is log-scale instead, with order-of-magnitude
 gridlines so it reads as log rather than an arbitrary line.
 
-Currently covers **gold** (PAXG + XAUT vs. total above-ground gold value) and
-**Treasuries** (BUIDL + USDY vs. total US Treasury debt held by the public).
+Currently covers **gold** (PAXG + XAUT vs. total above-ground gold value),
+**silver** (KAG vs. total above-ground silver value), and **Treasuries** (BUIDL +
+USDY vs. total US Treasury debt held by the public). Cards render in a 3-per-row
+grid (wide page layout) that keeps filling out as more asset classes are added.
+
+![Screenshot](docs/screenshot.jpg)
 
 ## Data sources & assumptions
 
@@ -55,6 +59,38 @@ where `total_tonnes` is a static constant in `config.py`:
 This figure changes slowly, so it's a periodically-updated constant rather than
 something scraped live. Update it in `config.py` (with a fresh citation/date) as new
 Goldhub estimates are published.
+
+### Silver
+
+**Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
+endpoint (`total_supply × current_price`), *not* read from the
+[KAG](https://www.coingecko.com/en/coins/kinesis-silver) (Kinesis Silver) Ethereum
+contract (`0x56BA8B58B7d1f6D384a1c4dd553f39ebc8741B8e`). KAG is natively minted on
+Kinesis's own ledger (a Stellar fork) — the Ethereum ERC-20 contract is only a
+secondary "wrapped" representation holding a small fraction of total supply (an
+on-chain read there gave ~35,000 tokens vs. CoinGecko's aggregate ~3.78M). Same
+underlying issue as Treasuries' BUIDL/USDY, same fix: use the aggregator instead of
+a single-chain read.
+
+Kinesis Silver is the dominant tokenized silver product by a wide margin — no
+second silver token is large enough yet to be worth including, unlike gold's
+PAXG+XAUT pair, so again this is an undercount, never an overcount.
+
+**Total above-ground silver value** — this denominator is far murkier than gold's.
+The Silver Institute's "identifiable above-ground stocks" (investment bars/coins
+only, ~79,000 tonnes) is about 20x smaller than broader estimates that include
+jewelry, silverware, and industrial stock. To stay comparable with gold's WGC
+figure (which *does* include jewelry and industrial holdings), this uses the
+broader estimate:
+
+> CPM Group, comprehensive above-ground silver estimate (~2018 data, ~1.7 million
+> tonnes). Retrieved 2026-07-26.
+> https://cpmgroup.com/how-much-silver-is-above-ground/
+
+This citation choice matters a lot for the resulting percentage — a reader
+comparing this app's silver number against one using the narrower Silver Institute
+figure will see a ~20x difference for reasons that have nothing to do with data
+quality.
 
 ### Treasuries
 
@@ -106,8 +142,15 @@ of truth: if the two disagree by more than 2%, the mismatch is flagged; otherwis
 confirmation note is recorded. Results are shown under each asset's "How is this
 calculated?" expander as "Latest verification".
 
-This check is exactly what caught the Treasuries multi-chain issue described above —
-it's not just theoretical insurance, it changed the implementation.
+This check is exactly what caught the Treasuries and Silver multi-chain/multi-ledger
+issues described above — it's not just theoretical insurance, it changed the
+implementation twice.
+
+Treasuries and Silver don't get this same cross-check, since CoinGecko's aggregate
+*is* their primary source — there's no better independent figure to check it
+against. Instead, for those, `total_supply × price` is checked against CoinGecko's
+own reported `market_cap` from the same API response, which can catch an internally
+inconsistent response (e.g. a stale field) but not a wrong source.
 
 ## Fallback / staleness handling
 
@@ -164,9 +207,10 @@ reality_check/
 ├── viz.py             # Streamlit card/hero-stat/log-scale-bar rendering
 └── sources/
     ├── onchain.py     # shared web3 ERC-20 supply reader
-    ├── prices.py      # shared CoinGecko price fetcher + cross-check helper
-    ├── gold.py        # GoldSource — reference AssetClassSource implementation
-    └── treasuries.py  # TreasurySource — live-total-fetch reference implementation
+    ├── prices.py      # shared CoinGecko price fetcher + cross-check/consistency helpers
+    ├── gold.py        # GoldSource — on-chain-read reference implementation
+    ├── silver.py      # SilverSource — CoinGecko-aggregate reference implementation
+    └── treasuries.py  # TreasurySource — live-total-fetch + CoinGecko-aggregate implementation
 ```
 
 To add a new asset class (e.g. tokenized real estate):

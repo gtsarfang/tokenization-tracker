@@ -73,6 +73,12 @@ _ASSET_THEME: dict[str, _Theme] = {
         # muted-brass -> polished-gold -> pale-gold, evoking gold tones along the track
         track_gradient="linear-gradient(90deg, #a67c00 0%, #d4af37 55%, #f6e6b4 100%)",
     ),
+    "silver": _Theme(
+        accent="#71797E",
+        icon_svg=_coin_icon("#71797E"),
+        # gunmetal -> silver -> near-white, evoking silver tones along the track
+        track_gradient="linear-gradient(90deg, #52585c 0%, #a8adb2 55%, #e8eaec 100%)",
+    ),
     "treasuries": _Theme(
         accent="#2b6cb0",
         icon_svg=_bank_icon("#2b6cb0"),
@@ -187,15 +193,10 @@ def inject_base_css() -> None:
             color: #b7791f;
         }
         .rc-header {
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            width: 100vw;
             background: #111827;
             color: #ffffff;
-            padding: 2rem max(1.5rem, calc(50vw - 350px));
+            padding: 2rem 2.5rem;
+            border-radius: 12px;
             margin-bottom: 2rem;
         }
         .rc-header-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
@@ -204,12 +205,11 @@ def inject_base_css() -> None:
         div[data-testid="stAppViewContainer"] .stMainBlockContainer {
             padding-top: 1.5rem;
         }
-        header[data-testid="stHeader"] {
-            background: #111827;
+        div[data-testid="stHorizontalBlock"] {
+            align-items: stretch;
         }
-        header[data-testid="stHeader"] * {
-            color: #ffffff !important;
-            fill: #ffffff !important;
+        .rc-breakdown-item.rc-breakdown-placeholder {
+            visibility: hidden;
         }
         </style>
         """,
@@ -232,6 +232,7 @@ def render_asset_bar(
     key: str,
     methodology: str,
     quantity: tuple[str, str] | None = None,
+    pad_rows_to: int = 0,
 ) -> bool:
     label = key.replace("_", " ").title()
     theme = _ASSET_THEME.get(key, _DEFAULT_THEME)
@@ -251,7 +252,7 @@ def render_asset_bar(
         )
         st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
 
-        breakdown = _breakdown_html(result, mode)
+        breakdown = _breakdown_html(result, pad_rows_to)
         if breakdown:
             st.markdown(breakdown, unsafe_allow_html=True)
 
@@ -304,10 +305,13 @@ def _hero_html(
     )
 
 
-def _breakdown_html(result: AssetClassResult, mode: str) -> str | None:
-    # No per-component weight data in "mass" mode (only an aggregate tokenized/total
-    # pair is available there), so the breakdown only applies to %/$ display.
-    if mode == "mass" or len(result.components) < 2:
+def _breakdown_html(result: AssetClassResult, pad_rows_to: int) -> str | None:
+    # Always shown regardless of display mode (%/$/mass) — this is supplementary
+    # per-component detail, not tied to the headline's unit. Padded with invisible
+    # placeholder rows up to `pad_rows_to` so every card in a row has the same
+    # number of rows, keeping card heights aligned regardless of how many
+    # components a given asset class actually has.
+    if pad_rows_to < 2:
         return None
     rows = "".join(
         f'<div class="rc-breakdown-item">'
@@ -319,6 +323,19 @@ def _breakdown_html(result: AssetClassResult, mode: str) -> str | None:
         + "</div>"
         for c in result.components
     )
+    # Roughly matches real backing text length so it wraps to the same number of
+    # lines, keeping placeholder row height close to a real row's height.
+    _placeholder_backing = "Placeholder placeholder placeholder placeholder placeholder placeholder."
+    placeholder_count = max(0, pad_rows_to - len(result.components))
+    rows += (
+        '<div class="rc-breakdown-item rc-breakdown-placeholder">'
+        '<div class="rc-breakdown-row">'
+        '<span class="rc-breakdown-name">Placeholder Name</span>'
+        '<span class="rc-breakdown-value">$0.0B</span>'
+        "</div>"
+        f'<div class="rc-breakdown-backing">Backed by: {_placeholder_backing}</div>'
+        "</div>"
+    ) * placeholder_count
     return f'<div class="rc-breakdown">{rows}</div>'
 
 
