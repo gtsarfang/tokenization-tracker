@@ -24,14 +24,16 @@ def _get_connection(db_path: str) -> sqlite3.Connection:
 
 def main() -> None:
     st.set_page_config(page_title="Tokenization Tracker", page_icon="📊", layout="centered")
-    st.title("Tokenization Tracker")
-    st.caption("Tracking how much of each real-world asset class has moved on-chain.")
 
     config = load_config()
     conn = _get_connection(config.db_path)
     sources = registry.get_sources(config)
 
     viz.inject_base_css()
+    viz.render_header(
+        "Tokenization Tracker",
+        "Tracking how much of each real-world asset class has moved on-chain.",
+    )
 
     if st.button("Refresh all"):
         for source in sources.values():
@@ -42,7 +44,12 @@ def main() -> None:
         if result is None:
             result = refresh_asset_class(source, conn)
 
-        if viz.render_asset_bar(result, key=name):
+        if viz.render_asset_bar(
+            result,
+            key=name,
+            methodology=source.describe_methodology(),
+            quantity=source.describe_quantity(result),
+        ):
             refresh_asset_class(source, conn)
             st.rerun()
 

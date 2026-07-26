@@ -21,6 +21,14 @@ class ComponentValue:
     supply_quality: DataQuality
     price_quality: DataQuality
     note: str = ""
+    # Human-readable label (e.g. "BlackRock BUIDL") for display where a bare ticker
+    # wouldn't mean anything to someone unfamiliar with it. Falls back to `symbol`
+    # wherever left blank.
+    display_name: str = ""
+    # Plain-English description of the real-world collateral this token represents
+    # (e.g. "1 troy oz of allocated gold in a Swiss vault") — the point of this app
+    # is what backs a token, not just its price.
+    backing: str = ""
 
 
 @dataclass(frozen=True)

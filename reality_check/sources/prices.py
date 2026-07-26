@@ -18,6 +18,119 @@ class PriceReading:
     note: str
 
 
+@dataclass(frozen=True)
+class MarketSupply:
+    total_supply: float | None
+    note: str
+
+
+def fetch_cross_check_supply(
+    base_url: str,
+    coingecko_ids: Sequence[str],
+    timeout_seconds: float,
+) -> dict[str, MarketSupply]:
+    """Best-effort secondary supply reading from CoinGecko's `/coins/markets` endpoint,
+    used only to sanity-check the primary on-chain `totalSupply()` reading — an
+    on-chain read is already the ground truth for a specific contract, so this never
+    blocks or replaces the primary value, only flags if the two disagree by more than
+    expected (e.g. a wrong contract address or decimals bug)."""
+    try:
+        response = requests.get(
+            f"{base_url}/coins/markets",
+            params={"vs_currency": "usd", "ids": ",".join(coingecko_ids)},
+            timeout=timeout_seconds,
+        )
+        response.raise_for_status()
+        rows = response.json()
+    except (requests.RequestException, ValueError):
+        return {
+            coingecko_id: MarketSupply(None, "cross-check unavailable (CoinGecko request failed)")
+            for coingecko_id in coingecko_ids
+        }
+
+    by_id = {row["id"]: row for row in rows}
+    readings: dict[str, MarketSupply] = {}
+    for coingecko_id in coingecko_ids:
+        row = by_id.get(coingecko_id)
+        total_supply = row.get("total_supply") if row else None
+        if total_supply is None:
+            readings[coingecko_id] = MarketSupply(None, "cross-check unavailable (no data)")
+        else:
+            readings[coingecko_id] = MarketSupply(float(total_supply), "")
+    return readings
+
+
+def cross_check_note(onchain_quantity: float, market: MarketSupply, tolerance: float = 0.02) -> str:
+    """Compares an on-chain supply reading against CoinGecko's reported total supply."""
+    if market.total_supply is None:
+        return market.note
+    if onchain_quantity <= 0:
+        return "cross-check skipped (zero on-chain quantity)"
+    diff = abs(onchain_quantity - market.total_supply) / onchain_quantity
+    if diff > tolerance:
+        return f"⚠ CoinGecko-reported supply differs by {diff:.1%} from on-chain reading"
+    return f"✓ matches CoinGecko-reported supply (within {diff:.1%})"
+
+
+@dataclass(frozen=True)
+class MarketDataReading:
+    price_usd: float
+    total_supply: float
+    quality: DataQuality
+    note: str
+
+
+def fetch_market_data(
+    base_url: str,
+    coingecko_ids: Sequence[str],
+    fallback_prices: dict[str, float],
+    fallback_supplies: dict[str, float],
+    timeout_seconds: float,
+) -> dict[str, MarketDataReading]:
+    """Primary price+supply source (via `/coins/markets`) for tokens natively minted
+    on multiple chains with independent per-chain supply (e.g. USDY, BUIDL) — for
+    those, a single-chain on-chain `totalSupply()` read would meaningfully undercount,
+    since there's no single canonical chain holding the full circulating supply.
+    CoinGecko aggregates `total_supply` across every chain it tracks for a coin id."""
+    try:
+        response = requests.get(
+            f"{base_url}/coins/markets",
+            params={"vs_currency": "usd", "ids": ",".join(coingecko_ids)},
+            timeout=timeout_seconds,
+        )
+        response.raise_for_status()
+        by_id = {row["id"]: row for row in response.json()}
+    except (requests.RequestException, ValueError) as exc:
+        note = f"CoinGecko request failed ({exc.__class__.__name__}); used fallback price/supply"
+        return {
+            coingecko_id: MarketDataReading(
+                price_usd=fallback_prices[coingecko_id],
+                total_supply=fallback_supplies[coingecko_id],
+                quality=DataQuality.FALLBACK,
+                note=note,
+            )
+            for coingecko_id in coingecko_ids
+        }
+
+    readings: dict[str, MarketDataReading] = {}
+    for coingecko_id in coingecko_ids:
+        row = by_id.get(coingecko_id)
+        price = row.get("current_price") if row else None
+        supply = row.get("total_supply") if row else None
+        if price is None or supply is None:
+            readings[coingecko_id] = MarketDataReading(
+                price_usd=fallback_prices[coingecko_id],
+                total_supply=fallback_supplies[coingecko_id],
+                quality=DataQuality.FALLBACK,
+                note=f"'{coingecko_id}' missing from CoinGecko response; used fallback",
+            )
+        else:
+            readings[coingecko_id] = MarketDataReading(
+                price_usd=float(price), total_supply=float(supply), quality=DataQuality.LIVE, note=""
+            )
+    return readings
+
+
 def fetch_simple_prices(
     base_url: str,
     coingecko_ids: Sequence[str],

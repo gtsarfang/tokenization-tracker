@@ -4,13 +4,25 @@ gold value. Reference implementation of AssetClassSource for future asset classe
 from __future__ import annotations
 
 from config import TROY_OZ_PER_TONNE, AppConfig
-from reality_check.models import ComponentValue, TotalValue
+from reality_check.models import AssetClassResult, ComponentValue, TotalValue
 from reality_check.sources.onchain import get_web3, read_erc20_total_supply
-from reality_check.sources.prices import PriceReading, fetch_simple_prices
+from reality_check.sources.prices import (
+    PriceReading,
+    cross_check_note,
+    fetch_cross_check_supply,
+    fetch_simple_prices,
+)
 
 # PAXG is redeemable 1:1 for a troy ounce of LBMA-good-delivery gold, so its market
 # price is used as a live proxy for spot gold price (avoids a separate metals API).
 _GOLD_SPOT_PROXY_COINGECKO_ID = "pax-gold"
+
+
+def _format_tonnes(troy_oz: float) -> str:
+    tonnes = troy_oz / TROY_OZ_PER_TONNE
+    if tonnes >= 1:
+        return f"{tonnes:,.1f} t"
+    return f"{tonnes * 1000:,.1f} kg"
 
 
 class GoldSource:
@@ -23,6 +35,11 @@ class GoldSource:
     def fetch_tokenized(self) -> tuple[ComponentValue, ...]:
         w3 = get_web3(self._config.rpc_url, self._config.rpc_timeout_seconds)
         prices = self._get_prices()
+        cross_checks = fetch_cross_check_supply(
+            self._config.coingecko_base_url,
+            [token.coingecko_id for token in self._config.gold.tokens],
+            self._config.coingecko_timeout_seconds,
+        )
 
         components = []
         for token in self._config.gold.tokens:
@@ -33,6 +50,7 @@ class GoldSource:
                 token.fallback_supply,
             )
             price = prices[token.coingecko_id]
+            verification = cross_check_note(supply.quantity, cross_checks[token.coingecko_id])
             components.append(
                 ComponentValue(
                     symbol=token.symbol,
@@ -41,7 +59,9 @@ class GoldSource:
                     value_usd=supply.quantity * price.price_usd,
                     supply_quality=supply.quality,
                     price_quality=price.quality,
-                    note="; ".join(n for n in (supply.note, price.note) if n),
+                    note="; ".join(n for n in (supply.note, price.note, verification) if n),
+                    display_name=f"{token.issuer} {token.symbol}",
+                    backing=token.backing,
                 )
             )
         return tuple(components)
@@ -55,6 +75,44 @@ class GoldSource:
             f"@ ${spot.price_usd:,.2f}/oz (PAXG proxy, {spot.quality.value})"
         )
         return TotalValue(value_usd=total_usd, basis_note=basis_note, quality=spot.quality)
+
+    def describe_methodology(self) -> str:
+        gold = self._config.gold
+        symbols = " + ".join(token.symbol for token in gold.tokens)
+        return (
+            f"**Tokenized supply** — `totalSupply()` read directly from the "
+            f"{symbols} ERC-20 contracts on their canonical Ethereum mainnet "
+            f"addresses, via web3.py.\n\n"
+            f"**Why only {symbols}?** They're the two largest gold-backed tokens "
+            "by market cap by a wide margin. Smaller gold-backed tokens exist "
+            "(e.g. Kinesis KAU, Comtech Gold) but are excluded here as negligible "
+            "in size — this means the true tokenized total is a small undercount, "
+            "never an overcount.\n\n"
+            "**Is summing them correct — any overlap?** No double-counting: PAXG "
+            "(Paxos) and XAUT (Tether Gold) are backed by separate, independently "
+            "audited gold reserves, not shared collateral. We only read each "
+            "token's canonical mainnet contract; if either is bridged/wrapped onto "
+            "another chain, that's done by locking the mainnet tokens (which stay "
+            "counted in mainnet `totalSupply`) and minting a claim elsewhere — not "
+            "additional gold — so bridging doesn't cause double-counting either.\n\n"
+            "**Prices** — fetched live from the CoinGecko free API "
+            "(`/simple/price`).\n\n"
+            "**Gold spot price** — derived from PAXG's market price rather than a "
+            "separate metals API, since PAXG is redeemable 1:1 for a troy ounce of "
+            "LBMA-good-delivery gold.\n\n"
+            f"**Total gold value** = total above-ground tonnes × "
+            f"{TROY_OZ_PER_TONNE:,.4f} troy oz/tonne × spot price, where total "
+            f"tonnes ({gold.total_tonnes:,.0f} t) is from: {gold.source_citation}.\n\n"
+            "Any value that falls back to a manually configured constant (RPC or "
+            "price API failure) is marked stale — see the badge above if so."
+        )
+
+    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
+        # PAXG and XAUT are both redeemable ~1:1 for a troy oz of gold, so the token
+        # quantities already fetched double as the tokenized weight — no extra fetch.
+        tokenized_oz = sum(c.quantity for c in result.components)
+        total_oz = self._config.gold.total_tonnes * TROY_OZ_PER_TONNE
+        return (_format_tonnes(tokenized_oz), _format_tonnes(total_oz))
 
     def _get_prices(self) -> dict[str, PriceReading]:
         if self._price_cache is None:

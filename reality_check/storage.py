@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS snapshot_components (
     value_usd        REAL NOT NULL,
     supply_quality   TEXT NOT NULL CHECK (supply_quality IN ('live','fallback')),
     price_quality    TEXT NOT NULL CHECK (price_quality IN ('live','fallback')),
-    note             TEXT NOT NULL DEFAULT ''
+    note             TEXT NOT NULL DEFAULT '',
+    display_name     TEXT NOT NULL DEFAULT '',
+    backing          TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_snapshot_components_snapshot_id
@@ -81,8 +83,8 @@ def insert_snapshot(conn: sqlite3.Connection, result: AssetClassResult) -> int:
         """
         INSERT INTO snapshot_components (
             snapshot_id, symbol, quantity, unit_price_usd, value_usd,
-            supply_quality, price_quality, note
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            supply_quality, price_quality, note, display_name, backing
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -94,6 +96,8 @@ def insert_snapshot(conn: sqlite3.Connection, result: AssetClassResult) -> int:
                 c.supply_quality.value,
                 c.price_quality.value,
                 c.note,
+                c.display_name,
+                c.backing,
             )
             for c in result.components
         ],
@@ -136,6 +140,8 @@ def fetch_history(
                 supply_quality=DataQuality(row["supply_quality"]),
                 price_quality=DataQuality(row["price_quality"]),
                 note=row["note"],
+                display_name=row["display_name"],
+                backing=row["backing"],
             )
             for row in component_rows
         )

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from reality_check.models import ComponentValue, TotalValue
+from reality_check.models import AssetClassResult, ComponentValue, TotalValue
 
 
 class AssetClassSource(Protocol):
@@ -23,4 +23,15 @@ class AssetClassSource(Protocol):
     def fetch_total(self) -> TotalValue:
         """Fetch/derive the real-world total. Must never raise; internally falls
         back to configured manual values and marks the result as stale."""
+        ...
+
+    def describe_methodology(self) -> str:
+        """Static markdown explaining how tokenized/total are computed for this
+        asset class, with source citations. Never raises; no network/IO."""
+        ...
+
+    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
+        """Optional physical-unit readout as (tokenized, total) display strings,
+        e.g. ("55 t", "216,265 t") for a commodity measured by weight. Return None
+        if this asset class has no natural physical unit (e.g. Treasuries)."""
         ...

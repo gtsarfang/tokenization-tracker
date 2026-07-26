@@ -24,6 +24,10 @@ TROY_OZ_PER_TONNE = 32_150.7466
 @dataclass(frozen=True)
 class TokenConfig:
     symbol: str
+    issuer: str
+    # Plain-English description of the actual real-world collateral, not just what
+    # the token trades for — this app is about what backs a token, not its price.
+    backing: str
     contract_address: str
     expected_decimals: int
     coingecko_id: str
@@ -39,6 +43,16 @@ class GoldConfig:
 
 
 @dataclass(frozen=True)
+class TreasuryConfig:
+    # Fallback only — the live total is fetched from the US Treasury's own API
+    # (see sources/treasuries.py) since, unlike gold's above-ground stock, it
+    # changes daily and a static constant would drift too fast to be meaningful.
+    fallback_total_debt_usd: float
+    source_citation: str
+    tokens: tuple[TokenConfig, TokenConfig]
+
+
+@dataclass(frozen=True)
 class AppConfig:
     rpc_url: str
     rpc_timeout_seconds: float
@@ -46,12 +60,18 @@ class AppConfig:
     coingecko_timeout_seconds: float
     db_path: str
     gold: GoldConfig
+    treasuries: TreasuryConfig
 
 
 # --- PAXG / XAUT contract facts (not user-tunable via env) ---------------------------
 
 _PAXG = TokenConfig(
     symbol="PAXG",
+    issuer="Paxos",
+    backing=(
+        "1 troy oz of a specific LBMA-certified 400oz gold bar, stored in Brink's "
+        "vaults in London. Redeemable for physical gold delivery."
+    ),
     contract_address="0x45804880De22913dAFE09f4980848ECE6EcbAf78",
     expected_decimals=18,
     coingecko_id="pax-gold",
@@ -63,6 +83,11 @@ _PAXG = TokenConfig(
 
 _XAUT = TokenConfig(
     symbol="XAUT",
+    issuer="Tether",
+    backing=(
+        "1 troy oz of individually serialized, allocated physical gold, stored in "
+        "Swiss vaults. Redeemable for physical delivery in Switzerland."
+    ),
     contract_address="0x68749665FF8D2d112Fa859AA293F07A622782F38",
     expected_decimals=6,
     coingecko_id="tether-gold",
@@ -85,6 +110,56 @@ _GOLD_CONFIG = GoldConfig(
 )
 
 
+# --- BUIDL / USDY contract facts (not user-tunable via env) ------------------------
+# BUIDL and USDY are, as of 2026-07-26, two of the largest tokenized US Treasury
+# products (BlackRock's BUIDL and Ondo's USDY). Circle's USYC is currently comparable
+# in size or larger but isn't included yet — a candidate for a future addition, not
+# because it's excluded on principle.
+
+_BUIDL = TokenConfig(
+    symbol="BUIDL",
+    issuer="BlackRock",
+    backing=(
+        "Shares in a BlackRock money-market fund holding US Treasury bills, "
+        "overnight repurchase agreements, and cash — assets custodied by BNY Mellon."
+    ),
+    contract_address="0x7712C34205737192402172409a8F7ccef8aA2AEc",
+    expected_decimals=6,
+    coingecko_id="blackrock-usd-institutional-digital-liquidity-fund",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/blackrock-usd-institutional-digital-liquidity-fund
+    fallback_supply=2_636_982_101.22,
+    fallback_price_usd=1.00,
+)
+
+_USDY = TokenConfig(
+    symbol="USDY",
+    issuer="Ondo",
+    backing=(
+        "A note backed by short-term US Treasuries (held via Morgan Stanley) and "
+        "bank deposits at insured US banks, in a bankruptcy-remote SPV. Accrues "
+        "yield via a rising redemption value rather than a floating price."
+    ),
+    contract_address="0x96F6eF951840721AdBF46Ac996b59E0235CB985C",
+    expected_decimals=18,
+    coingecko_id="ondo-us-dollar-yield",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/ondo-us-dollar-yield
+    fallback_supply=1_894_599_428.93,
+    fallback_price_usd=1.14,
+)
+
+_TREASURY_CONFIG = TreasuryConfig(
+    # US Treasury Fiscal Data, "Debt Held by the Public" (Debt to the Penny),
+    # 2026-07-23: $31.91T. Used only if the live API call fails — see
+    # sources/treasuries.py for the live fetch.
+    # https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/
+    fallback_total_debt_usd=31_911_919_221_141.67,
+    source_citation="US Treasury Fiscal Data API, 'Debt Held by the Public' (Debt to the Penny)",
+    tokens=(_BUIDL, _USDY),
+)
+
+
 def load_config() -> AppConfig:
     return AppConfig(
         rpc_url=os.environ.get("RC_RPC_URL", "https://ethereum.publicnode.com"),
@@ -97,4 +172,5 @@ def load_config() -> AppConfig:
         ),
         db_path=os.environ.get("RC_DB_PATH", "data/reality_check.db"),
         gold=_GOLD_CONFIG,
+        treasuries=_TREASURY_CONFIG,
     )
