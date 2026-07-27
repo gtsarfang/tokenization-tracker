@@ -65,10 +65,7 @@ class TreasurySource:
         components = []
         for token in self._config.treasuries.tokens:
             reading = market[token.coingecko_id]
-            coingecko_value_usd = reading.total_supply * reading.price_usd
-
-            value_usd = coingecko_value_usd
-            quality = reading.quality
+            value_usd = reading.total_supply * reading.price_usd
             notes = [reading.note, consistency_note(reading)]
 
             if token.defillama_slug:
@@ -76,31 +73,32 @@ class TreasurySource:
                     token.defillama_slug, self._config.coingecko_timeout_seconds
                 )
                 if defillama_reading.value_usd is not None:
-                    # DefiLlama sums TVL per deployment chain; verified this is
-                    # more complete than CoinGecko's total_supply for BUIDL/USDY
-                    # specifically (CoinGecko was found to undercount even after
-                    # switching away from a single-chain on-chain read), so
-                    # DefiLlama's figure is used as the primary value when
-                    # available, not just as a cross-check.
-                    diff = abs(coingecko_value_usd - defillama_reading.value_usd) / defillama_reading.value_usd
-                    value_usd = defillama_reading.value_usd
-                    quality = DataQuality.LIVE
+                    # DefiLlama sums per-chain token balances, which double-counts
+                    # value moved via a lock-and-mint bridge (BUIDL uses Wormhole:
+                    # locked on the source chain *and* minted on the destination
+                    # chain, both counted). A third source (rwa.xyz, which tracks
+                    # net issuance) confirmed CoinGecko is the accurate one here —
+                    # DefiLlama is kept only as an informational comparison, not
+                    # used as primary (a prior version of this code did use it as
+                    # primary, based on a two-source comparison that wrongly
+                    # assumed the larger number was more complete).
+                    diff = (
+                        abs(value_usd - defillama_reading.value_usd) / value_usd if value_usd else 0.0
+                    )
                     notes.append(
-                        f"primary source: DefiLlama TVL (${defillama_reading.value_usd / 1e9:.2f}B); "
-                        f"CoinGecko total_supply×price (${coingecko_value_usd / 1e9:.2f}B) "
-                        f"differs by {diff:.1%}"
+                        f"DefiLlama TVL (${defillama_reading.value_usd / 1e9:.2f}B) differs by "
+                        f"{diff:.1%} — likely double-counts bridged supply, not used as primary"
                     )
                 else:
                     notes.append(defillama_reading.note)
 
-            quantity = value_usd / reading.price_usd if reading.price_usd else 0.0
             components.append(
                 ComponentValue(
                     symbol=token.symbol,
-                    quantity=quantity,
+                    quantity=reading.total_supply,
                     unit_price_usd=reading.price_usd,
                     value_usd=value_usd,
-                    supply_quality=quality,
+                    supply_quality=reading.quality,
                     price_quality=reading.quality,
                     note="; ".join(n for n in notes if n),
                     display_name=f"{token.issuer} {token.symbol}",
@@ -121,20 +119,26 @@ class TreasurySource:
         treasuries = self._config.treasuries
         symbols = " + ".join(token.symbol for token in treasuries.tokens)
         return (
-            f"**Tokenized value** — {symbols} are natively minted independently "
-            "on multiple chains (BUIDL on 8, USDY on 12), each with its own "
-            "separate supply — there is no single canonical chain whose "
-            "`totalSupply()` represents the global total, so a single-chain "
-            "on-chain read would meaningfully undercount them (confirmed: this "
-            "app's first implementation did exactly that). The fix wasn't as "
-            "simple as switching to CoinGecko's `total_supply`, either — "
-            "checking DefiLlama's per-chain TVL breakdown for the same tokens "
-            "showed CoinGecko *also* undercounts both (by ~30% for BUIDL, ~19% "
-            "for USDY, as of 2026-07-26), apparently not aggregating every "
-            "deployment chain either. DefiLlama's TVL (an explicit sum across "
-            "every chain it tracks the protocol on) is used as the primary "
-            "value when available; CoinGecko's `total_supply × current_price` "
-            "is kept as a fallback and shown for comparison.\n\n"
+            f"**Tokenized value** — fetched live from CoinGecko's "
+            "`/coins/markets` endpoint (`total_supply × current_price`), *not* "
+            f"read from a single on-chain contract like gold's PAXG/XAUT. "
+            f"{symbols} are natively minted independently on multiple chains "
+            "(BUIDL on 8, USDY on 12), each with its own separate supply — "
+            "there is no single canonical chain whose `totalSupply()` "
+            "represents the global total, so a single-chain on-chain read "
+            "would meaningfully undercount them (confirmed: this app's first "
+            "implementation did exactly that).\n\n"
+            "**A second, corrected fix** — checking DefiLlama's per-chain TVL "
+            "breakdown initially looked like it revealed CoinGecko *also* "
+            "undercounting both tokens, so an earlier version of this app "
+            "switched to DefiLlama as primary. That was wrong: DefiLlama sums "
+            "per-chain token balances, and BUIDL moves across chains via "
+            "Wormhole's lock-and-mint bridge — locked on the source chain *and* "
+            "minted on the destination chain, both counted, inflating the sum. "
+            "A third source, [rwa.xyz](https://rwa.xyz) (which tracks net "
+            "issuance, not per-chain balances), confirmed CoinGecko's figure "
+            "was right all along for both BUIDL and USDY. Two independent "
+            "sources agreeing beats trusting the larger of two numbers.\n\n"
             f"**Why only {symbols}?** BlackRock's BUIDL and Ondo's USDY are two of "
             "the largest tokenized US Treasury products. Circle's USYC is currently "
             "comparable in size or larger but isn't included yet — a candidate for "
@@ -151,16 +155,15 @@ class TreasurySource:
             "gold's above-ground stock, this changes daily, so it's fetched fresh "
             "on every refresh rather than stored as a periodically-updated "
             "constant.\n\n"
-            "Any value that falls back to a manually configured constant (CoinGecko, "
-            "DefiLlama, or Treasury API failure) is marked stale — see the badge "
-            "above if so.\n\n"
-            "**Verification** — DefiLlama and CoinGecko are independent data "
-            "providers, so using DefiLlama as primary and comparing it against "
-            "CoinGecko's own `total_supply × price` is a genuine cross-source "
-            "check, not a same-source consistency check like Silver/Private "
-            "Credit get. `total_supply × price` is also checked against "
-            "CoinGecko's own reported `market_cap` from the same API response, "
-            "for internal consistency on the fallback path."
+            "Any value that falls back to a manually configured constant (CoinGecko "
+            "or Treasury API failure) is marked stale — see the badge above if so.\n\n"
+            "**Verification** — `total_supply × price` is checked against "
+            "CoinGecko's own reported `market_cap` from the same API response "
+            "(internal consistency). DefiLlama's TVL is also shown for "
+            "comparison but isn't used to judge correctness, since it's known to "
+            "run high for lock-and-mint bridged tokens like BUIDL — a one-off "
+            "manual check against rwa.xyz (not wired in live — no free API) is "
+            "what actually settled which source to trust."
         )
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:

@@ -66,18 +66,26 @@ Goldhub estimates are published.
 ### Silver
 
 **Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
-endpoint (`total_supply × current_price`), *not* read from the
-[KAG](https://www.coingecko.com/en/coins/kinesis-silver) (Kinesis Silver) Ethereum
-contract (`0x56BA8B58B7d1f6D384a1c4dd553f39ebc8741B8e`). KAG is natively minted on
-Kinesis's own ledger (a Stellar fork) — the Ethereum ERC-20 contract is only a
-secondary "wrapped" representation holding a small fraction of total supply (an
-on-chain read there gave ~35,000 tokens vs. CoinGecko's aggregate ~3.78M). Same
-underlying issue as Treasuries' BUIDL/USDY, same fix: use the aggregator instead of
-a single-chain read.
+endpoint (`total_supply × current_price`) for both tokens, not read on-chain
+directly:
+- [KAG](https://www.coingecko.com/en/coins/kinesis-silver) (Kinesis Silver) is
+  natively minted on Kinesis's own ledger (a Stellar fork) — its Ethereum ERC-20
+  contract (`0x56BA8B58B7d1f6D384a1c4dd553f39ebc8741B8e`) is only a secondary
+  "wrapped" representation holding a small fraction of total supply (an on-chain
+  read there gave ~35,000 tokens vs. CoinGecko's aggregate ~3.78M).
+- [SLVON](https://www.coingecko.com/en/coins/ishares-silver-trust-ondo-tokenized-stock)
+  (Ondo's tokenized iShares Silver Trust) is natively minted across 4 chains
+  (Ethereum, BNB Chain, Solana, HyperEVM) — same underlying multi-chain issue.
 
-Kinesis Silver is the dominant tokenized silver product by a wide margin — no
-second silver token is large enough yet to be worth including, unlike gold's
-PAXG+XAUT pair, so again this is an undercount, never an overcount.
+Both have the same fix as Treasuries' BUIDL/USDY: use the aggregator instead of a
+single-chain read.
+
+Per [DefiLlama's asset rankings](https://defillama.com/rwa/asset-group/precious-metals)
+(2026-07-26), KAG is the dominant tokenized silver product (~$194M), SLVON is a
+clear second (~$23M, ~12% on top of KAG — worth including), and a third
+(STRATO Silver, ~$3.5M, ~1.8% on top) isn't, at least not yet. No double-counting
+between KAG and SLVON: direct allocated-silver redemption vs. ETF shares, backed
+by separate silver holdings. This is still an undercount, never an overcount.
 
 **Total above-ground silver value** — this denominator is far murkier than gold's.
 The Silver Institute's "identifiable above-ground stocks" (investment bars/coins
@@ -102,29 +110,34 @@ and USDY (Ondo US Dollar Yield) are natively minted independently on multiple
 chains (BUIDL on 8, USDY on 12), each with its own separate supply — there's no
 single canonical chain whose `totalSupply()` represents the global total.
 
-This went through two fixes, not one:
+This went through three iterations, not one — including a wrong turn that got
+corrected:
 1. **First implementation**: read `totalSupply()` from each token's Ethereum
    mainnet contract, same as gold's PAXG/XAUT. The CoinGecko cross-check caught
    that this undercounted BUIDL by ~13x and USDY by ~2x, since — unlike
    PAXG/XAUT, which are single-canonical-chain tokens — these two have no chain
    whose local supply represents the total.
-2. **Second fix**: switched to CoinGecko's `/coins/markets` `total_supply ×
-   current_price` (its own claimed cross-chain aggregate). Checking that against
-   [DefiLlama](https://defillama.com/rwa) — a free, no-key, independent
-   aggregator with a public per-chain TVL breakdown — showed CoinGecko
-   *also* undercounts both: by ~30% for BUIDL, ~19% for USDY (as of
-   2026-07-26). DefiLlama's protocol pages
-   ([blackrock-buidl](https://defillama.com/protocol/blackrock-buidl),
-   [ondo-yield-assets](https://defillama.com/protocol/ondo-yield-assets)) sum
-   TVL explicitly across every chain they track the protocol on, which turned
-   out to be more complete than CoinGecko's supposedly-aggregated
-   `total_supply` for these two tokens specifically.
+2. **Second fix (later found to be wrong)**: switched to CoinGecko's
+   `/coins/markets` `total_supply × current_price`. Checking that against
+   [DefiLlama](https://defillama.com/rwa)'s per-chain TVL breakdown showed a
+   ~30% (BUIDL) / ~19% (USDY) gap, which looked like CoinGecko was *also*
+   undercounting — so DefiLlama's larger number was made primary.
+3. **Third fix (the correction)**: comparing against a third source,
+   [rwa.xyz](https://rwa.xyz) (checked manually — no free API), showed rwa.xyz
+   and CoinGecko agreeing closely (BUIDL: $2.61B vs. $2.64B; USDY: $2.16B vs.
+   $2.15B), while DefiLlama was the outlier. The reason: BUIDL moves across its
+   8 chains via Wormhole's **lock-and-mint** bridge — value gets locked on the
+   source chain *and* a wrapped copy is minted on the destination chain, and
+   both get counted when DefiLlama sums per-chain balances. CoinGecko's
+   `total_supply` (and rwa.xyz's net-issuance tracking) don't have this
+   problem. CoinGecko is back to being primary; DefiLlama is shown for
+   comparison only, not trusted as ground truth.
 
-DefiLlama's TVL is now used as the primary tokenized value when available, with
-CoinGecko's `total_supply × price` kept as a fallback and shown alongside it for
-comparison. (Gold's PAXG/XAUT don't have this problem — checked the same way,
-their on-chain reads matched DefiLlama within 0.5%, confirming they really are
-single-canonical-chain tokens.)
+The lesson: comparing two sources and trusting the larger number isn't
+verification — it just picks a direction. A third source was needed to actually
+resolve which one was right. (Gold's PAXG/XAUT don't have this problem — on-chain
+reads, CoinGecko, and DefiLlama all agree within 0.5%, confirming they really are
+single-canonical-chain tokens with no bridging ambiguity.)
 
 BUIDL and USDY are two of the largest tokenized US Treasury products (as of
 2026-07-26). Circle's USYC is currently comparable in size or larger but isn't
@@ -178,40 +191,35 @@ different methodology being applied inconsistently.
 
 Three tiers, depending on what's available for a given token:
 
-1. **Independent second source** (Gold's PAXG/XAUT, Treasuries' BUIDL/USDY) — a
-   genuinely separate data provider corroborates (or, as it turned out, corrects)
-   the primary source. For gold, on-chain `totalSupply()` is cross-checked against
-   both CoinGecko's `total_supply` and [DefiLlama](https://defillama.com/rwa)'s
-   tracked TVL for the same protocol — free, no-key APIs, verified manually to
-   track the right entity under a comparable metric before being wired in. For
-   Treasuries, DefiLlama and CoinGecko effectively check each other, and
-   DefiLlama's more-complete per-chain sum won out as primary (see above).
-2. **Same-source consistency check** (Silver, Private Credit) — `total_supply ×
+1. **Independent second source** (Gold's PAXG/XAUT) — on-chain `totalSupply()`
+   is cross-checked against both CoinGecko's `total_supply` and
+   [DefiLlama](https://defillama.com/rwa)'s tracked TVL for the same protocol —
+   free, no-key APIs, verified manually to track the right entity under a
+   comparable metric before being wired in. All three agree within 0.5%.
+2. **Two sources, arbitrated by a third** (Treasuries' BUIDL/USDY) — CoinGecko
+   and DefiLlama disagreed by ~19-30%. Rather than assume the larger number was
+   more complete (a mistake made once already — see above), a third source
+   (rwa.xyz, checked manually) settled it: CoinGecko was right, DefiLlama was
+   double-counting bridged supply. DefiLlama is still shown in the notes for
+   transparency, just not trusted as the tiebreaker anymore.
+3. **Same-source consistency check** (Silver, Private Credit) — `total_supply ×
    price` is checked against CoinGecko's own reported `market_cap` from the same
    API response. This can catch an internally inconsistent response (e.g. a stale
-   field) but not a wrong source, since there's no second provider tracking these
-   specific tokens under a comparable metric. [rwa.xyz](https://rwa.xyz) was
-   considered as a possible second source for these, but its API requires a paid/
-   institutional subscription (a discount exists for students/early-stage
-   projects, but it isn't free), which doesn't fit this app's "no signup, no key"
-   pattern — DefiLlama was checked instead specifically because it's free.
-3. **None available** — not every free provider tracks every token. DefiLlama's
-   "Kinesis Labs" listing is an unrelated protocol (not Kinesis Money/KAG), and
-   its Figure-related listings track different products (the exchange platform, a
-   lending pool), not the FIGR_HELOC certificate token — so Silver and Private
-   Credit fall back to tier 2 only. A one-off manual spot-check against
-   CoinMarketCap on 2026-07-26 (not wired into the app — no API key configured)
-   found Silver's number reassuringly close (~$189M vs. CoinGecko's ~$191M), but
-   Private Credit's materially different (~$15.05B vs. CoinGecko's ~$21.19B, a
-   ~27% gap) — documented as an open question in `private_credit.py`'s
-   methodology text rather than silently resolved, since FIGR_HELOC's supply
-   genuinely fluctuates (tracks unpaid loan principal) and there's no clear
-   evidence which aggregator is more current.
+   field) but not a wrong source, since there's no free second provider tracking
+   these specific tokens under a comparable metric (DefiLlama's "Kinesis Labs"
+   listing is an unrelated protocol, not Kinesis Money/KAG; its Figure-related
+   listings track different products, not the FIGR_HELOC certificate token).
+   [rwa.xyz](https://rwa.xyz) itself doesn't help for Silver either (KAG's data
+   is locked behind their paid tier). For Private Credit, rwa.xyz *does* show
+   FIGR_HELOC ($20.50B) closely matching CoinGecko ($21.19B) — a manual
+   CoinMarketCap spot-check that showed a ~27% gap earlier now looks like CMC
+   was the outlier, not CoinGecko, though this isn't wired into the app as a
+   live check either way.
 
 Results are shown under each asset's "How is this calculated?" expander as "Latest
-verification". This is exactly what caught the Treasuries and Silver
-multi-chain/multi-ledger issues described above, and then caught a *second*,
-smaller undercount in Treasuries after the first fix — it's not just theoretical
+verification". This is what caught the Treasuries multi-chain undercount, then
+caught the *next* mistake made while fixing it, then a *third* pass (rwa.xyz)
+caught that too — it's not just theoretical
 insurance, it changed the implementation three times across two asset classes.
 
 ## Fallback / staleness handling

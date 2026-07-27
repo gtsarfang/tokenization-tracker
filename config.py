@@ -139,10 +139,11 @@ _GOLD_CONFIG = GoldConfig(
 )
 
 
-# --- KAG contract facts (not user-tunable via env) --------------------------------
+# --- KAG / SLVON contract facts (not user-tunable via env) ------------------------
 # Kinesis Silver (KAG) is the dominant tokenized silver product by a wide margin
-# (~$190-420M market cap depending on date) — no second silver token comes close
-# enough to be worth including yet, unlike gold's PAXG+XAUT pair.
+# (~$194M per DefiLlama, 2026-07-26). SLVON (Ondo's tokenized iShares Silver
+# Trust) is the clear second (~$23M, ~12% on top of KAG) — worth including. A
+# third (STRATO Silver, ~$3.5M, ~1.8% on top) isn't, at least not yet.
 
 _KAG = TokenConfig(
     symbol="KAG",
@@ -159,6 +160,23 @@ _KAG = TokenConfig(
     # https://www.coingecko.com/en/coins/kinesis-silver if this drifts too far from live.
     fallback_supply=3_777_096.93,
     fallback_price_usd=50.85,
+)
+
+_SLVON = TokenConfig(
+    symbol="SLVON",
+    issuer="Ondo",
+    backing=(
+        "Shares in the iShares Silver Trust (SLV) ETF — a BlackRock-managed "
+        "trust holding physical silver bullion — held with US custodians via "
+        "Ondo Global Markets. Redeemable 1:1 for SLV exposure."
+    ),
+    contract_address="0xf3E4872e6A4Cf365888D93b6146a2bAa7348F1a4",
+    expected_decimals=18,
+    coingecko_id="ishares-silver-trust-ondo-tokenized-stock",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/ishares-silver-trust-ondo-tokenized-stock
+    fallback_supply=438_081.95,
+    fallback_price_usd=53.74,
 )
 
 _SILVER_CONFIG = SilverConfig(
@@ -178,7 +196,7 @@ _SILVER_CONFIG = SilverConfig(
         "'identifiable above-ground stocks' figure (~20x smaller) for "
         "comparability with gold's comprehensive WGC total"
     ),
-    tokens=(_KAG,),
+    tokens=(_KAG, _SLVON),
 )
 
 

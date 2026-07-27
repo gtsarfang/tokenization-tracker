@@ -1,11 +1,11 @@
-"""Silver asset-class source: KAG tokenized supply vs. total above-ground silver
-value. Kinesis Silver (KAG) is the dominant tokenized silver product by a wide
-margin, unlike gold's PAXG+XAUT pair — so there's just one component here.
+"""Silver asset-class source: KAG + SLVON tokenized supply vs. total above-ground
+silver value.
 
-KAG is natively minted on Kinesis's own ledger (a Stellar fork); the Ethereum
-ERC-20 contract is only a secondary "wrapped" representation holding a small
-fraction of total supply — same underlying issue as Treasuries' BUIDL/USDY, so
-this uses the same CoinGecko-aggregate-as-primary-source pattern as
+Neither is read on-chain directly. KAG is natively minted on Kinesis's own ledger
+(a Stellar fork); its Ethereum ERC-20 contract is only a secondary "wrapped"
+representation holding a small fraction of total supply. SLVON (Ondo's tokenized
+iShares Silver Trust) is natively minted across Ethereum, BNB Chain, Solana, and
+HyperEVM. Both use the same CoinGecko-aggregate-as-primary-source pattern as
 `treasuries.py`, not a direct on-chain read like gold.py.
 """
 
@@ -47,35 +47,47 @@ class SilverSource:
 
     def fetch_total(self) -> TotalValue:
         silver = self._config.silver
-        token = silver.tokens[0]
-        spot = self._get_market_data()[token.coingecko_id]
+        # KAG specifically (not SLVON) is used as the spot-price proxy — it's a
+        # direct 1:1 allocated-silver redemption, closer to spot than an ETF
+        # share's NAV, which can drift slightly from spot over time (expense
+        # ratio drag).
+        spot_token = silver.tokens[0]
+        spot = self._get_market_data()[spot_token.coingecko_id]
         total_usd = silver.total_tonnes * TROY_OZ_PER_TONNE * spot.price_usd
         basis_note = (
             f"{silver.total_tonnes:,.0f} t ({silver.source_citation}) "
-            f"@ ${spot.price_usd:,.2f}/oz (KAG proxy, {spot.quality.value})"
+            f"@ ${spot.price_usd:,.2f}/oz ({spot_token.symbol} proxy, {spot.quality.value})"
         )
         return TotalValue(value_usd=total_usd, basis_note=basis_note, quality=spot.quality)
 
     def describe_methodology(self) -> str:
         silver = self._config.silver
-        token = silver.tokens[0]
+        symbols = " + ".join(token.symbol for token in silver.tokens)
+        spot_token = silver.tokens[0]
         return (
             f"**Tokenized supply & price** — fetched live from CoinGecko's "
             "`/coins/markets` endpoint (`total_supply × current_price`), *not* "
-            f"read from the {token.symbol} Ethereum contract. {token.symbol} is "
-            "natively minted on Kinesis's own ledger (a Stellar fork); the "
-            "Ethereum ERC-20 contract is only a secondary 'wrapped' "
-            "representation holding a small fraction of total supply — the same "
-            "kind of issue as Treasuries' BUIDL/USDY, so the same fix applies: "
-            "use the aggregator's total instead of a single-chain on-chain read.\n\n"
-            f"**Why only {token.symbol}?** Kinesis Silver is the dominant "
-            "tokenized silver product by a wide margin — no second silver token "
-            "is large enough yet to be worth including, unlike gold's PAXG+XAUT "
-            "pair. This means the true tokenized total is an undercount, never "
-            "an overcount.\n\n"
-            f"**Silver spot price** — derived from {token.symbol}'s market price "
-            "rather than a separate metals API, since it's redeemable 1:1 for a "
-            "troy ounce of allocated silver.\n\n"
+            f"read on-chain directly. {spot_token.symbol} is natively minted on "
+            "Kinesis's own ledger (a Stellar fork); its Ethereum ERC-20 contract "
+            "is only a secondary 'wrapped' representation holding a small "
+            "fraction of total supply. SLVON (Ondo's tokenized iShares Silver "
+            "Trust) is natively minted across 4 chains (Ethereum, BNB Chain, "
+            "Solana, HyperEVM). Both have the same underlying issue as "
+            "Treasuries' BUIDL/USDY, so the same fix applies: use the "
+            "aggregator's total instead of a single-chain on-chain read.\n\n"
+            f"**Why {symbols}?** Kinesis Silver (KAG) is the largest tokenized "
+            "silver product by a wide margin (~$194M). SLVON is the clear "
+            "second (~$23M, ~12% on top of KAG) — worth including. A third "
+            "(STRATO Silver, ~$3.5M, ~1.8% on top) isn't, at least not yet. "
+            "This means the true tokenized total is an undercount, never an "
+            "overcount.\n\n"
+            "**Is summing them correct — any overlap?** No double-counting: KAG "
+            "(direct allocated-silver redemption via Kinesis) and SLVON (shares "
+            "of the iShares Silver Trust ETF, via Ondo) are backed by separate "
+            "silver holdings, not a shared pool.\n\n"
+            f"**Silver spot price** — derived from {spot_token.symbol}'s market "
+            "price rather than a separate metals API, since it's redeemable 1:1 "
+            "for a troy ounce of allocated silver.\n\n"
             "**Total silver value** — this is far murkier than gold's. The Silver "
             "Institute's 'identifiable above-ground stocks' (investment bars/coins "
             "only) is about 20x smaller than broader estimates that include "
@@ -90,19 +102,19 @@ class SilverSource:
             "source). Instead, `total_supply × price` is checked against "
             "CoinGecko's own reported `market_cap` from the same API response — "
             "this can't catch a wrong source, only an internally inconsistent one. "
-            "DefiLlama (used as a genuine second source for gold and Treasuries) "
-            "was checked but has no entry that clearly tracks Kinesis Silver "
-            "specifically as of 2026-07-26 — its 'Kinesis Labs' listing is an "
-            "unrelated protocol, not Kinesis Money. A manual spot-check against "
-            "CoinMarketCap on 2026-07-26 showed it roughly agreeing with "
-            "CoinGecko (~3.67M vs ~3.78M circulating supply, ~$189M vs ~$191M "
-            "market cap) — not wired in as a live check, but a reassuring sanity "
-            "check on the one number this app does rely on for Silver."
+            "DefiLlama has no entry that clearly tracks Kinesis Money (its "
+            "'Kinesis Labs' listing is an unrelated protocol) or SLVON as of "
+            "2026-07-26, so neither gets that extra check. A manual spot-check "
+            "against CoinMarketCap on 2026-07-26 showed KAG roughly agreeing "
+            "with CoinGecko (~3.67M vs ~3.78M circulating supply, ~$189M vs "
+            "~$191M market cap) — not wired in as a live check, but reassuring."
         )
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
-        # KAG is redeemable ~1:1 for a troy oz of silver, so the token quantity
-        # already fetched doubles as the tokenized weight — no extra fetch.
+        # Both KAG (direct redemption) and SLVON (an ETF share designed to track
+        # ~1 oz of silver each) are close enough to 1:1 with a troy oz that the
+        # token quantities already fetched double as tokenized weight — no extra
+        # fetch. Same approximation level as gold's PAXG/XAUT already use.
         tokenized_oz = sum(c.quantity for c in result.components)
         total_oz = self._config.silver.total_tonnes * TROY_OZ_PER_TONNE
         return (format_tonnes(tokenized_oz), format_tonnes(total_oz))
