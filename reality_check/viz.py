@@ -286,6 +286,23 @@ def inject_base_css() -> None:
         div[data-testid="stHorizontalBlock"] {
             align-items: stretch;
         }
+        /* Safety net for narrow (phone) viewports: the log-scale bar's dot/tick
+        labels are absolutely positioned by percentage with nowrap text, sized
+        for a desktop-width column — on a narrow screen a long label (e.g.
+        "Tokenized ($10.6B)") can run past the card edge. overflow-x: hidden
+        here prevents that from turning into a page-wide horizontal scrollbar;
+        the media query below shrinks those labels so it's less likely to
+        happen in the first place. */
+        div[data-testid="stAppViewContainer"] {
+            overflow-x: hidden;
+        }
+        @media (max-width: 480px) {
+            .rc-header-title { font-size: 1.3rem; }
+            .rc-hero-pct { font-size: 1.2rem; }
+            .rc-log-dot-label, .rc-log-dot-label-sub, .rc-log-tick-label {
+                font-size: 0.56rem;
+            }
+        }
         /* Compact Streamlit's own chrome — dividers, the display-mode control,
         and the expander — so the three sections have a shot at fitting in one
         screen alongside the header, instead of Streamlit's default spacing
