@@ -114,7 +114,7 @@ def inject_base_css() -> None:
         .rc-hero { margin: 0.05rem 0 0.15rem 0; }
         .rc-hero-pct { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
         .rc-hero-sub { font-size: 0.76rem; color: rgba(127, 127, 127, 0.9); }
-        .rc-hero-alt { font-size: 0.68rem; color: rgba(127, 127, 127, 0.75); margin-top: 0.05rem; }
+        .rc-hero-alt { font-size: 0.76rem; color: rgba(127, 127, 127, 0.95); margin-top: 0.15rem; }
         .rc-breakdown {
             display: flex;
             flex-direction: column;
@@ -417,11 +417,18 @@ def _hero_html(
         )
     alt_line = ""
     if result.alt_total is not None and result.alt_pct_tokenized is not None:
-        alt_line = (
-            '<div class="rc-hero-alt">'
-            f"vs. investment stock only: {_format_pct(result.alt_pct_tokenized)}"
-            "</div>"
-        )
+        # Matches whatever unit the headline itself is in — no stored physical
+        # quantity for the alt (investment-stock) denominator, only its $
+        # value, so "unit" mode shows $ here same as "$" mode rather than
+        # silently staying in %.
+        if mode == "%":
+            alt_value = _format_pct(result.alt_pct_tokenized)
+        else:
+            alt_value = (
+                f"{_format_usd(result.tokenized_usd)} of "
+                f"{_format_usd(result.alt_total.value_usd)}"
+            )
+        alt_line = f'<div class="rc-hero-alt">vs. investment stock only: {alt_value}</div>'
     return (
         '<div class="rc-hero">'
         f'<div class="rc-hero-pct" style="color: {accent};">{headline}</div>'
