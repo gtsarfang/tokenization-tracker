@@ -10,7 +10,6 @@ from config import AppConfig, TokenConfig
 from reality_check.interfaces import AssetClassSource
 from reality_check.sources.gold import GoldSource
 from reality_check.sources.prices import MarketDataReading
-from reality_check.sources.private_credit import PrivateCreditSource
 from reality_check.sources.silver import SilverSource
 from reality_check.sources.treasuries import TreasurySource
 
@@ -22,7 +21,6 @@ def get_sources(
         "gold": GoldSource(config, market_data),
         "silver": SilverSource(config, market_data),
         "treasuries": TreasurySource(config, market_data),
-        "private_credit": PrivateCreditSource(config, market_data),
     }
 
 
@@ -33,6 +31,5 @@ def all_tokens(config: AppConfig) -> list[TokenConfig]:
         config.gold.tokens,
         config.silver.tokens,
         config.treasuries.tokens,
-        config.private_credit.tokens,
     )
     return [token for tokens in token_groups for token in tokens]

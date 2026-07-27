@@ -85,12 +85,6 @@ _ASSET_THEME: dict[str, _Theme] = {
         # navy -> mid-blue -> pale-blue, evoking US Treasury/government-bond tones
         track_gradient="linear-gradient(90deg, #1e3a5f 0%, #2b6cb0 55%, #a9c6e8 100%)",
     ),
-    "private_credit": _Theme(
-        accent="#0f766e",
-        icon_svg=_bank_icon("#0f766e"),
-        # deep teal -> teal -> pale teal, distinct from Treasuries' blue
-        track_gradient="linear-gradient(90deg, #0a4d47 0%, #0f766e 55%, #a7d8d2 100%)",
-    ),
 }
 
 
@@ -273,11 +267,9 @@ def render_header(title: str, subtitle: str) -> None:
 
 
 _ASSET_LABELS: dict[str, str] = {
-    # Both Treasuries and Private Credit are specifically US-scoped (US
-    # Treasury debt; US private credit market) — spelled out in the label so
-    # it's not mistaken for a global figure, unlike Gold/Silver which are.
+    # Treasuries is specifically US-scoped (US Treasury debt) — spelled out in
+    # the label so it's not mistaken for a global figure, unlike Gold/Silver.
     "treasuries": "US Treasuries",
-    "private_credit": "US Private Credit",
 }
 
 

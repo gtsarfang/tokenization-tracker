@@ -12,12 +12,19 @@ view (solid fill to "Tokenized," muted to "Total") with labeled ticks and a plai
 inferred from a dot's position.
 
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
-**silver** (KAG + SLVON vs. total above-ground silver value), **US Treasuries**
-(BUIDL + USDY vs. total US Treasury debt held by the public), and **US private
-credit** (FIGR_HELOC vs. total US private credit market — currently ~1.6%, a much
-further-along story than the other three, which sit around 0.01-0.02%). Cards
-render in a 3-per-row grid (wide page layout) that keeps filling out as more
-asset classes are added.
+**silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
+(BUIDL + USDY vs. total US Treasury debt held by the public). Cards render in a
+3-per-row grid (wide page layout) that keeps filling out as more asset classes
+are added.
+
+A fourth card, US private credit (Figure's tokenized HELOC portfolio vs. total
+US private credit market), was built and then removed: the denominator measures
+institutional business lending (direct lending, mezzanine, distressed debt),
+while the numerator is a consumer home-equity product — a genuine category
+mismatch, not just a labeling nitpick, even after fixing an earlier US-vs-global
+error in the same card. Rather than ship a comparison that doesn't hold up, it's
+pulled until there's either a properly category-matched denominator (e.g. total
+US home equity/HELOC lending) or a different asset class entirely.
 
 ![Screenshot](docs/screenshot.jpg)
 
@@ -166,58 +173,6 @@ marketable Treasury debt. Unlike gold's above-ground stock, this changes daily, 
 it's not a static config constant — only a fallback value is stored in `config.py`,
 used solely if the live API call fails.
 
-### US private credit
-
-**Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
-endpoint (`total_supply × current_price`), same as Treasuries/Silver:
-- [FIGR_HELOC](https://www.coingecko.com/en/coins/figure-heloc) (Figure) — the
-  unpaid principal balance of a portfolio of home equity lines of credit (HELOCs)
-  originated by Figure Technology Solutions
-
-**Why CoinGecko instead of an on-chain read?** FIGR_HELOC runs on
-[Provenance](https://provenance.io/), a non-EVM blockchain this app doesn't
-otherwise integrate with (no `web3.py` support, different address format
-entirely). Building a Provenance-specific client for one token wasn't worth it —
-CoinGecko already tracks FIGR_HELOC like any other coin, so this reuses the exact
-same aggregate-source pattern already built for Treasuries/Silver, just for a
-different underlying reason (non-EVM chain rather than multi-chain issuance).
-
-**Why only FIGR_HELOC?** Figure's tokenized HELOC portfolio is the dominant
-tokenized private credit product by a wide margin (~75% of the category as of
-early 2026). Other platforms (Maple Finance, Centrifuge, Goldfinch) are real but
-smaller — candidates for a future addition, not excluded on principle. This means
-the true tokenized total is an undercount, never an overcount.
-
-**Total US private credit market** — deliberately US-specific, not global:
-FIGR_HELOC only originates US HELOCs, so a global denominator would understate
-the true percentage (comparing a US-only numerator against a global total). A
-periodically-updated estimate, similar in kind to gold's WGC figure:
-
-> Federal Reserve, FEDS Notes, "Bank Lending to Private Credit: Size,
-> Characteristics, and Financial Stability Implications" (2025-05-23) — US
-> private credit market, $1.34 trillion as of 2024-Q2. Retrieved 2026-07-26.
-> https://www.federalreserve.gov/econres/notes/feds-notes/bank-lending-to-private-credit-size-characteristics-and-financial-stability-implications-20250523.html
-
-The same Fed note also states ~$2T globally at that point, closely matching
-Global Market Insights' independent ~$2.1T global 2025 estimate (used in an
-earlier version of this app, before the US-vs-global mismatch was caught) — two
-independent sources agreeing on the global figure is a reasonable cross-check
-lending confidence to the Fed's US breakout too, even without a live API to
-verify it against directly.
-
-**Is "private credit" even the right category for a consumer HELOC product?**
-Traditional finance usually reserves "private credit" for institutional business
-lending (direct lending, mezzanine, distressed debt) — consumer HELOCs are
-normally categorized separately. But [rwa.xyz](https://app.rwa.xyz/private-credit)'s
-own tracker explicitly scopes "tokenized credit" to include private credit,
-corporate credit, and asset-backed credit (its own category for FIGR_HELOC)
-together, so this app follows the same industry convention rather than
-inventing a narrower one.
-
-This is why US private credit shows ~1.6% tokenized while the other three cards
-sit around 0.01-0.02% — it's a genuinely different, further-along category, not
-a different methodology being applied inconsistently.
-
 ## Verification / cross-checking
 
 Three tiers, depending on what's available for a given token:
@@ -233,20 +188,14 @@ Three tiers, depending on what's available for a given token:
    (rwa.xyz, checked manually) settled it: CoinGecko was right, DefiLlama was
    double-counting bridged supply. DefiLlama is still shown in the notes for
    transparency, just not trusted as the tiebreaker anymore.
-3. **Same-source consistency check** (Gold's KAU, Silver, Private Credit) —
-   `total_supply × price` is checked against CoinGecko's own reported
-   `market_cap` from the same API response. This can catch an internally
-   inconsistent response (e.g. a stale field) but not a wrong source, since
-   there's no free second provider tracking these specific tokens under a
-   comparable metric (DefiLlama's "Kinesis Labs" listing is an unrelated
-   protocol, not Kinesis Money's KAU/KAG; its Figure-related listings track
-   different products, not the FIGR_HELOC certificate token; SLVON has no
-   DefiLlama match either). [rwa.xyz](https://rwa.xyz) itself doesn't help for
-   Silver/Gold's KAU (Kinesis data is locked behind their paid tier). For
-   Private Credit, rwa.xyz *does* show FIGR_HELOC ($20.50B) closely matching
-   CoinGecko ($21.19B) — a manual CoinMarketCap spot-check that showed a ~27%
-   gap earlier now looks like CMC was the outlier, not CoinGecko, though this
-   isn't wired into the app as a live check either way.
+3. **Same-source consistency check** (Gold's KAU, Silver) — `total_supply ×
+   price` is checked against CoinGecko's own reported `market_cap` from the
+   same API response. This can catch an internally inconsistent response
+   (e.g. a stale field) but not a wrong source, since there's no free second
+   provider tracking these specific tokens under a comparable metric
+   (DefiLlama's "Kinesis Labs" listing is an unrelated protocol, not Kinesis
+   Money's KAU/KAG; SLVON has no DefiLlama match either). rwa.xyz itself
+   doesn't help here either — Kinesis data is locked behind their paid tier.
 
 Results are shown under each asset's "How is this calculated?" expander as "Latest
 verification". This is what caught the Treasuries multi-chain undercount, then
@@ -326,8 +275,7 @@ reality_check/
     ├── defillama.py       # shared free/no-key DefiLlama TVL fetcher + cross-check helper
     ├── gold.py            # GoldSource — on-chain-read reference implementation
     ├── silver.py          # SilverSource — CoinGecko-aggregate reference implementation
-    ├── treasuries.py      # TreasurySource — live-total-fetch + DefiLlama/CoinGecko implementation
-    └── private_credit.py  # PrivateCreditSource — CoinGecko-aggregate for a non-EVM-chain token
+    └── treasuries.py      # TreasurySource — live-total-fetch + DefiLlama/CoinGecko implementation
 ```
 
 To add a new asset class (e.g. tokenized real estate):

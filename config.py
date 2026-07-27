@@ -66,13 +66,6 @@ class SilverConfig:
 
 
 @dataclass(frozen=True)
-class PrivateCreditConfig:
-    total_market_usd: float
-    source_citation: str
-    tokens: tuple[TokenConfig, ...]
-
-
-@dataclass(frozen=True)
 class TreasuryConfig:
     # Fallback only — the live total is fetched from the US Treasury's own API
     # (see sources/treasuries.py) since, unlike gold's above-ground stock, it
@@ -95,7 +88,6 @@ class AppConfig:
     db_path: str
     gold: GoldConfig
     silver: SilverConfig
-    private_credit: PrivateCreditConfig
     treasuries: TreasuryConfig
 
 
@@ -235,52 +227,6 @@ _SILVER_CONFIG = SilverConfig(
 )
 
 
-# --- FIGR_HELOC contract facts (not user-tunable via env) -------------------------
-# Figure's tokenized HELOC portfolio (FIGR_HELOC) is the dominant tokenized private
-# credit product by a wide margin (~75% of the category). It runs on Provenance, a
-# non-EVM chain we don't otherwise integrate with — but it's already tracked on
-# CoinGecko like any other coin, so no Provenance-specific integration is needed;
-# this uses the same CoinGecko-aggregate-as-primary-source pattern as
-# silver.py/treasuries.py, just for a different underlying reason (non-EVM chain
-# rather than multi-chain issuance).
-
-_FIGR_HELOC = TokenConfig(
-    symbol="FIGR_HELOC",
-    issuer="Figure",
-    backing=(
-        "The unpaid principal balance of a portfolio of home equity lines of "
-        "credit (HELOCs) originated by Figure Technology Solutions, recorded and "
-        "managed on the Provenance blockchain."
-    ),
-    contract_address="scope1qrm5d0wjzamyywvjuws6774ljmrqu8kh9x",  # Provenance asset scope, not an EVM address
-    expected_decimals=3,
-    coingecko_id="figure-heloc",
-    # Manual fallback, last observed 2026-07-26. Refresh periodically from
-    # https://www.coingecko.com/en/coins/figure-heloc if this drifts too far from live.
-    fallback_supply=20_491_723_089.21,
-    fallback_price_usd=1.034,
-)
-
-_PRIVATE_CREDIT_CONFIG = PrivateCreditConfig(
-    # US-specific, not global — FIGR_HELOC only originates US HELOCs, so the
-    # denominator needs to match. Federal Reserve, FEDS Notes, "Bank Lending to
-    # Private Credit: Size, Characteristics, and Financial Stability
-    # Implications" (2025-05-23): US private credit market totaled $1.34
-    # trillion as of 2024-Q2. The same note also states ~$2T globally at that
-    # point, closely matching Global Market Insights' independent $2.1T global
-    # 2025 estimate — two independent sources agreeing on the global figure is
-    # a reasonable cross-check lending confidence to the US breakout too.
-    # Retrieved 2026-07-26.
-    # https://www.federalreserve.gov/econres/notes/feds-notes/bank-lending-to-private-credit-size-characteristics-and-financial-stability-implications-20250523.html
-    total_market_usd=1_340_000_000_000.0,
-    source_citation=(
-        "Federal Reserve, FEDS Notes, 'Bank Lending to Private Credit' "
-        "(US private credit, 2024-Q2 estimate), retrieved 2026-07-26"
-    ),
-    tokens=(_FIGR_HELOC,),
-)
-
-
 # --- BUIDL / USDY contract facts (not user-tunable via env) ------------------------
 # BUIDL and USDY are, as of 2026-07-26, two of the largest tokenized US Treasury
 # products (BlackRock's BUIDL and Ondo's USDY). Circle's USYC is currently comparable
@@ -350,6 +296,5 @@ def load_config() -> AppConfig:
         db_path=os.environ.get("RC_DB_PATH", "data/reality_check.db"),
         gold=_GOLD_CONFIG,
         silver=_SILVER_CONFIG,
-        private_credit=_PRIVATE_CREDIT_CONFIG,
         treasuries=_TREASURY_CONFIG,
     )
