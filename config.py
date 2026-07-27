@@ -103,10 +103,10 @@ _PAXG = TokenConfig(
     contract_address="0x45804880De22913dAFE09f4980848ECE6EcbAf78",
     expected_decimals=18,
     coingecko_id="pax-gold",
-    # Manual fallback, last observed 2026-07-25. Refresh periodically from
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
     # https://www.coingecko.com/en/coins/pax-gold if this drifts too far from live.
-    fallback_supply=249_000.0,
-    fallback_price_usd=3_360.0,
+    fallback_supply=444_865.16,
+    fallback_price_usd=4_086.05,
     defillama_slug="paxos-gold",
 )
 
@@ -120,10 +120,10 @@ _XAUT = TokenConfig(
     contract_address="0x68749665FF8D2d112Fa859AA293F07A622782F38",
     expected_decimals=6,
     coingecko_id="tether-gold",
-    # Manual fallback, last observed 2026-07-25. Refresh periodically from
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
     # https://www.coingecko.com/en/coins/tether-gold if this drifts too far from live.
-    fallback_supply=246_000.0,
-    fallback_price_usd=3_365.0,
+    fallback_supply=707_747.09,
+    fallback_price_usd=4_081.53,
     defillama_slug="tether-gold",
 )
 
@@ -141,7 +141,7 @@ _KAU = TokenConfig(
     # Manual fallback, last observed 2026-07-26. Refresh periodically from
     # https://www.coingecko.com/en/coins/kinesis-gold if this drifts too far from live.
     fallback_supply=2_386_227.83,
-    fallback_price_usd=131.99,
+    fallback_price_usd=131.95,
     # Same issue as Silver's KAG: natively minted on Kinesis's own ledger (a
     # Stellar fork). An on-chain read of the Ethereum contract gave ~1.64M
     # tokens vs. CoinGecko's aggregate ~2.39M (verified 2026-07-26) — Ethereum
@@ -186,7 +186,7 @@ _KAG = TokenConfig(
     # Manual fallback, last observed 2026-07-26. Refresh periodically from
     # https://www.coingecko.com/en/coins/kinesis-silver if this drifts too far from live.
     fallback_supply=3_777_096.93,
-    fallback_price_usd=50.85,
+    fallback_price_usd=51.96,
 )
 
 _SLVON = TokenConfig(
@@ -202,8 +202,8 @@ _SLVON = TokenConfig(
     coingecko_id="ishares-silver-trust-ondo-tokenized-stock",
     # Manual fallback, last observed 2026-07-26. Refresh periodically from
     # https://www.coingecko.com/en/coins/ishares-silver-trust-ondo-tokenized-stock
-    fallback_supply=438_081.95,
-    fallback_price_usd=53.74,
+    fallback_supply=438_043.99,
+    fallback_price_usd=53.55,
 )
 
 _SILVER_CONFIG = SilverConfig(
@@ -273,8 +273,8 @@ _USDY = TokenConfig(
 
 _TREASURY_CONFIG = TreasuryConfig(
     # US Treasury Fiscal Data, "Debt Held by the Public" (Debt to the Penny),
-    # 2026-07-23: $31.91T. Used only if the live API call fails — see
-    # sources/treasuries.py for the live fetch.
+    # 2026-07-23: $31.91T (latest available as of 2026-07-26). Used only if the
+    # live API call fails — see sources/treasuries.py for the live fetch.
     # https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/
     fallback_total_debt_usd=31_911_919_221_141.67,
     source_citation="US Treasury Fiscal Data API, 'Debt Held by the Public' (Debt to the Penny)",
