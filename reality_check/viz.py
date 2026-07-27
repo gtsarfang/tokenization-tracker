@@ -21,6 +21,7 @@ when a new asset class is registered; unthemed asset classes fall back to
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import streamlit as st
@@ -314,6 +315,7 @@ def render_asset_section(
     methodology: str,
     quantity: tuple[str, str] | None = None,
     mode: str = "%",
+    shared_log_span: float | None = None,
 ) -> None:
     label = _ASSET_LABELS.get(key, key.replace("_", " ").title())
     theme = _ASSET_THEME.get(key, _DEFAULT_THEME)
@@ -341,7 +343,7 @@ def render_asset_section(
             if breakdown:
                 st.markdown(breakdown, unsafe_allow_html=True)
         with right:
-            log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient)
+            log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient, shared_log_span)
             if log_bar:
                 st.markdown(log_bar, unsafe_allow_html=True)
 
@@ -406,6 +408,7 @@ def _breakdown_html(result: AssetClassResult) -> str | None:
     # differing in height.
     if not result.components:
         return None
+    sorted_components = sorted(result.components, key=lambda c: c.value_usd, reverse=True)
     rows = "".join(
         f'<div class="rc-breakdown-item">'
         f'<div class="rc-breakdown-row">'
@@ -414,7 +417,7 @@ def _breakdown_html(result: AssetClassResult) -> str | None:
         f"</div>"
         + (f'<div class="rc-breakdown-backing">Backed by: {c.backing}</div>' if c.backing else "")
         + "</div>"
-        for c in result.components
+        for c in sorted_components
     )
     return f'<div class="rc-breakdown">{rows}</div>'
 
@@ -435,19 +438,40 @@ def _format_multiplier(ratio: float) -> str:
     return f"~{ratio:.1f}x"
 
 
-def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: str) -> str | None:
+def compute_shared_log_span(results: Iterable[AssetClassResult]) -> float:
+    # Each card's own natural span (decades between its tokenized fraction and
+    # its Total) differs slightly from the others, which shifted where ticks
+    # landed card to card (one showing a 0.01% tick, another starting at
+    # 0.1%) even though the underlying fractions were similar magnitude —
+    # making the bars look inconsistent when they were actually close. Using
+    # the largest natural span for every card's tick range (while still
+    # anchoring each card's own Total at the right edge) keeps tick positions
+    # aligned across cards, so equal pixel distance means equal multiplicative
+    # gap on every bar.
+    spans = []
+    for result in results:
+        tokenized, total = result.tokenized_usd, result.total.value_usd
+        if tokenized <= 0 or total <= 0:
+            continue
+        log_min = math.floor(math.log10(tokenized))
+        log_max = math.log10(total)
+        spans.append(max(log_max - log_min, 1.0))
+    return max(spans) if spans else 1.0
+
+
+def _log_scale_bar_html(
+    result: AssetClassResult, accent: str, track_gradient: str, shared_span: float | None = None
+) -> str | None:
     tokenized = result.tokenized_usd
     total = result.total.value_usd
     if tokenized <= 0 or total <= 0:
         return None
 
-    log_min = math.floor(math.log10(tokenized))
     # Not rounded up to the next power of 10 — the track ends exactly at Total,
     # like a loading bar, rather than continuing past it to a clean gridline.
     log_max = math.log10(total)
-    if log_max <= log_min:
-        log_max = log_min + 1
-    span = log_max - log_min
+    span = shared_span if shared_span is not None else max(log_max - math.floor(math.log10(tokenized)), 1.0)
+    log_min = log_max - span
 
     def position(value: float) -> float:
         return (math.log10(value) - log_min) / span * 100

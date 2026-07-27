@@ -69,6 +69,7 @@ def main() -> None:
     )
 
     results = {name: _load_result(name, source, conn) for name, source in sources.items()}
+    shared_log_span = viz.compute_shared_log_span(results.values())
 
     # One shared display-mode control for every card, instead of each card having
     # its own independent toggle (which let cards show inconsistent units at once).
@@ -85,6 +86,7 @@ def main() -> None:
             methodology=source.describe_methodology(),
             quantity=source.describe_quantity(result),
             mode=mode or "%",
+            shared_log_span=shared_log_span,
         )
 
 
