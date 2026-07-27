@@ -188,6 +188,9 @@ def inject_base_css() -> None:
             font-weight: 700;
             white-space: nowrap;
         }
+        .rc-log-dot-label-end {
+            transform: translateX(-100%);
+        }
         .rc-log-caption {
             font-size: 0.72rem;
             color: rgba(127, 127, 127, 0.75);
@@ -214,9 +217,6 @@ def inject_base_css() -> None:
         div[data-testid="stHorizontalBlock"] {
             align-items: stretch;
         }
-        .rc-breakdown-item.rc-breakdown-placeholder {
-            visibility: hidden;
-        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -238,7 +238,6 @@ def render_asset_bar(
     key: str,
     methodology: str,
     quantity: tuple[str, str] | None = None,
-    pad_rows_to: int = 0,
     mode: str = "%",
 ) -> None:
     label = key.replace("_", " ").title()
@@ -255,7 +254,7 @@ def render_asset_bar(
         )
         st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
 
-        breakdown = _breakdown_html(result, pad_rows_to)
+        breakdown = _breakdown_html(result)
         if breakdown:
             st.markdown(breakdown, unsafe_allow_html=True)
 
@@ -304,13 +303,15 @@ def _hero_html(
     )
 
 
-def _breakdown_html(result: AssetClassResult, pad_rows_to: int) -> str | None:
+def _breakdown_html(result: AssetClassResult) -> str | None:
     # Always shown regardless of display mode (%/$/mass) — this is supplementary
-    # per-component detail, not tied to the headline's unit. Padded with invisible
-    # placeholder rows up to `pad_rows_to` so every card in a row has the same
-    # number of rows, keeping card heights aligned regardless of how many
-    # components a given asset class actually has.
-    if pad_rows_to < 2:
+    # per-component detail (including what backs each token), not tied to the
+    # headline's unit. Shown for single-component assets too, not just 2+ — the
+    # "Backed by" text is the whole point, not a comparison between components.
+    # Sized to however many components this asset class actually has — no padding
+    # to match other cards, since a fake empty row was worse than cards simply
+    # differing in height.
+    if not result.components:
         return None
     rows = "".join(
         f'<div class="rc-breakdown-item">'
@@ -322,19 +323,6 @@ def _breakdown_html(result: AssetClassResult, pad_rows_to: int) -> str | None:
         + "</div>"
         for c in result.components
     )
-    # Roughly matches real backing text length so it wraps to the same number of
-    # lines, keeping placeholder row height close to a real row's height.
-    _placeholder_backing = "Placeholder placeholder placeholder placeholder placeholder placeholder."
-    placeholder_count = max(0, pad_rows_to - len(result.components))
-    rows += (
-        '<div class="rc-breakdown-item rc-breakdown-placeholder">'
-        '<div class="rc-breakdown-row">'
-        '<span class="rc-breakdown-name">Placeholder Name</span>'
-        '<span class="rc-breakdown-value">$0.0B</span>'
-        "</div>"
-        f'<div class="rc-breakdown-backing">Backed by: {_placeholder_backing}</div>'
-        "</div>"
-    ) * placeholder_count
     return f'<div class="rc-breakdown">{rows}</div>'
 
 
@@ -345,7 +333,9 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
         return None
 
     log_min = math.floor(math.log10(tokenized))
-    log_max = math.ceil(math.log10(total))
+    # Not rounded up to the next power of 10 — the track ends exactly at Total,
+    # like a loading bar, rather than continuing past it to a clean gridline.
+    log_max = math.log10(total)
     if log_max <= log_min:
         log_max = log_min + 1
     span = log_max - log_min
@@ -353,8 +343,9 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
     def position(value: float) -> float:
         return (math.log10(value) - log_min) / span * 100
 
-    step = max(1, math.ceil(span / _MAX_LOG_TICKS))
-    ticks = list(range(log_min, log_max, step)) + [log_max]
+    last_tick = math.floor(log_max)
+    step = max(1, math.ceil((last_tick - log_min) / _MAX_LOG_TICKS))
+    ticks = list(range(log_min, last_tick, step)) + ([last_tick] if last_tick > log_min else [])
 
     ticks_html = "".join(
         f'<div class="rc-log-tick" style="left: {(t - log_min) / span * 100}%;"></div>'
@@ -364,7 +355,7 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
     )
 
     tokenized_pos = position(tokenized)
-    total_pos = position(total)
+    total_pos = 100.0
 
     return (
         '<div class="rc-log-wrap"><div class="rc-log-track" '
@@ -372,8 +363,10 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
         f"{ticks_html}"
         f'<div class="rc-log-dot" style="left: {tokenized_pos}%; background: {accent};"></div>'
         f'<div class="rc-log-dot" style="left: {total_pos}%; background: rgba(127, 127, 127, 0.7);"></div>'
-        f'<div class="rc-log-dot-label" style="left: {tokenized_pos}%; color: {accent};">Tokenized</div>'
-        f'<div class="rc-log-dot-label" style="left: {total_pos}%;">Total</div>'
+        f'<div class="rc-log-dot-label" style="left: {tokenized_pos}%; color: {accent};">'
+        f"Tokenized ({_format_usd(tokenized)})</div>"
+        f'<div class="rc-log-dot-label rc-log-dot-label-end" style="left: {total_pos}%;">'
+        f"Total ({_format_usd(total)})</div>"
         "</div>"
         '<div class="rc-log-caption">log scale — linear would make this invisible</div>'
         "</div>"

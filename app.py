@@ -54,10 +54,6 @@ def main() -> None:
     # its own independent toggle (which let cards show inconsistent units at once).
     mode = st.segmented_control("Display as", ["%", "$", "mass"], default="%", key="global_mode")
 
-    # Pad every card's breakdown to the same number of rows so cards line up to
-    # the same height regardless of how many components an asset class has.
-    max_components = max(len(result.components) for result in results.values())
-
     names = list(sources.keys())
     cards_per_row = 3
     for row_start in range(0, len(names), cards_per_row):
@@ -73,7 +69,6 @@ def main() -> None:
                     key=name,
                     methodology=source.describe_methodology(),
                     quantity=source.describe_quantity(result),
-                    pad_rows_to=max_components,
                     mode=mode or "%",
                 )
 
