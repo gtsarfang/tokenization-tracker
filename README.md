@@ -3,8 +3,7 @@
 A live dashboard measuring how much of gold, silver, and US Treasuries has
 actually moved on-chain — and the methodology fights that went into getting
 each number right (undercounts, double-counts, and the wrong turns along the
-way are documented, not hidden). **[Live demo](#)** — replace with the
-deployed URL.
+way are documented, not hidden). **[Live demo](https://tokenization-tracker.streamlit.app/)**
 
 How much of a real-world asset class has moved on-chain so far? This app tracks
 tokenization's growth, one asset class at a time: a big headline stat (%, $, or —
