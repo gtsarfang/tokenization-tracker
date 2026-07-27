@@ -1,7 +1,11 @@
-"""Private credit asset-class source: FIGR_HELOC tokenized supply vs. total global
+"""US Private Credit asset-class source: FIGR_HELOC tokenized supply vs. total US
 private credit market. Figure's tokenized HELOC portfolio (FIGR_HELOC) is the
 dominant tokenized private credit product by a wide margin, unlike gold's
 PAXG+XAUT pair — so there's just one component here.
+
+The denominator is US-specific, not global — FIGR_HELOC only originates US
+HELOCs, so a global total would understate the true percentage (comparing a
+US-only numerator against a global denominator). See `config.py` for sourcing.
 
 FIGR_HELOC runs on Provenance, a non-EVM chain this app doesn't otherwise
 integrate with. Rather than building a Provenance-specific client, this uses the
@@ -75,10 +79,25 @@ class PrivateCreditSource:
             "addition, not excluded on principle. This means the true tokenized "
             "total is an undercount, never an overcount.\n\n"
             f"**What backs {token.symbol}?** {token.backing}\n\n"
-            "**Total private credit market** — a static periodically-updated "
+            "**Total US private credit market** — a static periodically-updated "
             f"estimate ({private_credit.source_citation}), similar in kind to "
             "gold's WGC figure: it changes slowly enough that a live daily fetch "
-            "isn't necessary, unlike Treasury debt.\n\n"
+            "isn't necessary, unlike Treasury debt. Deliberately US-specific, "
+            "not global — matching FIGR_HELOC's US-only scope. The Fed's own "
+            "note also states ~$2T globally at the same point, closely matching "
+            "Global Market Insights' independent ~$2.1T global 2025 estimate — "
+            "two independent sources agreeing on the global figure is a "
+            "reasonable cross-check lending confidence to the US breakout too, "
+            "even without a live API to verify it against.\n\n"
+            "**Is 'private credit' even the right category for a HELOC "
+            "product?** Traditional finance usually reserves 'private credit' "
+            "for institutional business lending (direct lending, mezzanine, "
+            "distressed debt) — consumer HELOCs are normally categorized "
+            "separately. But rwa.xyz's own tracker explicitly scopes 'tokenized "
+            "credit' to include private credit, corporate credit, and "
+            "asset-backed credit (its own category for FIGR_HELOC) together, "
+            "so this app follows the same industry convention rather than "
+            "inventing a narrower one.\n\n"
             "Any value that falls back to a manually configured constant "
             "(CoinGecko failure) is marked stale — see the badge above if so.\n\n"
             "**Verification** — like Treasuries and Silver, there's no "

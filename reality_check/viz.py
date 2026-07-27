@@ -272,6 +272,15 @@ def render_header(title: str, subtitle: str) -> None:
     )
 
 
+_ASSET_LABELS: dict[str, str] = {
+    # Both Treasuries and Private Credit are specifically US-scoped (US
+    # Treasury debt; US private credit market) — spelled out in the label so
+    # it's not mistaken for a global figure, unlike Gold/Silver which are.
+    "treasuries": "US Treasuries",
+    "private_credit": "US Private Credit",
+}
+
+
 def render_asset_bar(
     result: AssetClassResult,
     key: str,
@@ -279,7 +288,7 @@ def render_asset_bar(
     quantity: tuple[str, str] | None = None,
     mode: str = "%",
 ) -> None:
-    label = key.replace("_", " ").title()
+    label = _ASSET_LABELS.get(key, key.replace("_", " ").title())
     theme = _ASSET_THEME.get(key, _DEFAULT_THEME)
 
     with st.container(border=True):

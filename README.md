@@ -2,16 +2,19 @@
 
 How much of a real-world asset class has moved on-chain so far? This app tracks
 tokenization's growth, one asset class at a time: a big headline stat (%, $, or —
-where it makes sense — physical units), plus a log-scale bar comparing tokenized
-value against the asset class's total real-world value. A linear fill-bar can't show
-a fraction this small (tokenized gold is ~0.02% of all gold) without the fill being
-imperceptible, so the comparison is log-scale instead, with order-of-magnitude
-gridlines so it reads as log rather than an arbitrary line.
+where it makes sense — physical units), then two stacked bars comparing tokenized
+value against the asset class's total real-world value. A linear bar is shown
+first — usually rendering as basically empty, since the tokenized fraction is
+often too small to see (tokenized gold is ~0.02% of all gold) — which is itself
+the demonstration of why a second, log-scale bar follows it: a proper progress-bar
+view (solid fill to "Tokenized," muted to "Total") with labeled ticks and a plain
+"Total is ~6,000x larger..." callout, instead of leaving the scale gap to be
+inferred from a dot's position.
 
-Currently covers **gold** (PAXG + XAUT vs. total above-ground gold value),
-**silver** (KAG vs. total above-ground silver value), **Treasuries** (BUIDL + USDY
-vs. total US Treasury debt held by the public), and **private credit**
-(FIGR_HELOC vs. total global private credit market — currently ~1%, a much
+Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
+**silver** (KAG + SLVON vs. total above-ground silver value), **US Treasuries**
+(BUIDL + USDY vs. total US Treasury debt held by the public), and **US private
+credit** (FIGR_HELOC vs. total US private credit market — currently ~1.6%, a much
 further-along story than the other three, which sit around 0.01-0.02%). Cards
 render in a 3-per-row grid (wide page layout) that keeps filling out as more
 asset classes are added.
@@ -112,7 +115,7 @@ comparing this app's silver number against one using the narrower Silver Institu
 figure will see a ~20x difference for reasons that have nothing to do with data
 quality.
 
-### Treasuries
+### US Treasuries
 
 **Tokenized value** — BUIDL (BlackRock USD Institutional Digital Liquidity Fund)
 and USDY (Ondo US Dollar Yield) are natively minted independently on multiple
@@ -163,7 +166,7 @@ marketable Treasury debt. Unlike gold's above-ground stock, this changes daily, 
 it's not a static config constant — only a fallback value is stored in `config.py`,
 used solely if the live API call fails.
 
-### Private credit
+### US private credit
 
 **Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
 endpoint (`total_supply × current_price`), same as Treasuries/Silver:
@@ -185,16 +188,35 @@ early 2026). Other platforms (Maple Finance, Centrifuge, Goldfinch) are real but
 smaller — candidates for a future addition, not excluded on principle. This means
 the true tokenized total is an undercount, never an overcount.
 
-**Total private credit market** — a periodically-updated estimate, similar in
-kind to gold's WGC figure:
+**Total US private credit market** — deliberately US-specific, not global:
+FIGR_HELOC only originates US HELOCs, so a global denominator would understate
+the true percentage (comparing a US-only numerator against a global total). A
+periodically-updated estimate, similar in kind to gold's WGC figure:
 
-> Global Market Insights Inc., Report GMI16251, 2025 estimate ($2.1 trillion).
-> Retrieved 2026-07-26.
-> https://www.gminsights.com/industry-analysis/private-credit-market
+> Federal Reserve, FEDS Notes, "Bank Lending to Private Credit: Size,
+> Characteristics, and Financial Stability Implications" (2025-05-23) — US
+> private credit market, $1.34 trillion as of 2024-Q2. Retrieved 2026-07-26.
+> https://www.federalreserve.gov/econres/notes/feds-notes/bank-lending-to-private-credit-size-characteristics-and-financial-stability-implications-20250523.html
 
-This is why private credit shows ~1% tokenized while the other three cards sit
-around 0.01-0.02% — it's a genuinely different, further-along category, not a
-different methodology being applied inconsistently.
+The same Fed note also states ~$2T globally at that point, closely matching
+Global Market Insights' independent ~$2.1T global 2025 estimate (used in an
+earlier version of this app, before the US-vs-global mismatch was caught) — two
+independent sources agreeing on the global figure is a reasonable cross-check
+lending confidence to the Fed's US breakout too, even without a live API to
+verify it against directly.
+
+**Is "private credit" even the right category for a consumer HELOC product?**
+Traditional finance usually reserves "private credit" for institutional business
+lending (direct lending, mezzanine, distressed debt) — consumer HELOCs are
+normally categorized separately. But [rwa.xyz](https://app.rwa.xyz/private-credit)'s
+own tracker explicitly scopes "tokenized credit" to include private credit,
+corporate credit, and asset-backed credit (its own category for FIGR_HELOC)
+together, so this app follows the same industry convention rather than
+inventing a narrower one.
+
+This is why US private credit shows ~1.6% tokenized while the other three cards
+sit around 0.01-0.02% — it's a genuinely different, further-along category, not
+a different methodology being applied inconsistently.
 
 ## Verification / cross-checking
 

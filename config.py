@@ -262,11 +262,21 @@ _FIGR_HELOC = TokenConfig(
 )
 
 _PRIVATE_CREDIT_CONFIG = PrivateCreditConfig(
-    # Global Market Insights Inc. (GMI), Report GMI16251, published 2026-07 —
-    # global private credit market size, 2025 estimate. Retrieved 2026-07-26.
-    # https://www.gminsights.com/industry-analysis/private-credit-market
-    total_market_usd=2_100_000_000_000.0,
-    source_citation="Global Market Insights Inc., Report GMI16251 (2025 estimate), retrieved 2026-07-26",
+    # US-specific, not global — FIGR_HELOC only originates US HELOCs, so the
+    # denominator needs to match. Federal Reserve, FEDS Notes, "Bank Lending to
+    # Private Credit: Size, Characteristics, and Financial Stability
+    # Implications" (2025-05-23): US private credit market totaled $1.34
+    # trillion as of 2024-Q2. The same note also states ~$2T globally at that
+    # point, closely matching Global Market Insights' independent $2.1T global
+    # 2025 estimate — two independent sources agreeing on the global figure is
+    # a reasonable cross-check lending confidence to the US breakout too.
+    # Retrieved 2026-07-26.
+    # https://www.federalreserve.gov/econres/notes/feds-notes/bank-lending-to-private-credit-size-characteristics-and-financial-stability-implications-20250523.html
+    total_market_usd=1_340_000_000_000.0,
+    source_citation=(
+        "Federal Reserve, FEDS Notes, 'Bank Lending to Private Credit' "
+        "(US private credit, 2024-Q2 estimate), retrieved 2026-07-26"
+    ),
     tokens=(_FIGR_HELOC,),
 )
 
