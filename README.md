@@ -196,9 +196,11 @@ Four more — Franklin Templeton's **BENJI** and **iBENJI**, JPMorgan's
 figures instead: none has a trustworthy live API (CoinGecko undercounts BENJI
 by ~10x and doesn't list the other three at all; JLTXX runs on JPMorgan's
 permissioned Kinexys ledger, not a publicly queryable chain). Each is set from
-rwa.xyz and always reported as fallback/stale quality — the same honesty the
-app already applies to any fallback figure, just permanent here rather than
-outage-triggered, and refreshed periodically by hand instead of every request.
+rwa.xyz and refreshed periodically by hand instead of every request. These
+carry a distinct `DataQuality.MANUAL` quality tier (shown as a "manually
+tracked" tag next to the token in the breakdown) rather than the card-level
+"stale" badge — "stale" is reserved for a normally-live figure that happens to
+be out of date right now (an API outage), which isn't the situation here.
 
 That review also corrected an earlier, blog-sourced estimate of the gap that
 had turned out to be wrong in several places — see "Roadmap / known gaps"

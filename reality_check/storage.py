@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
     pct_tokenized     REAL NOT NULL,
     as_of_date        TEXT NOT NULL,
     total_basis_note  TEXT NOT NULL,
-    total_quality     TEXT NOT NULL CHECK (total_quality IN ('live','fallback')),
+    total_quality     TEXT NOT NULL CHECK (total_quality IN ('live','fallback','manual')),
     source_notes      TEXT NOT NULL,
     created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS snapshot_components (
     quantity         REAL NOT NULL,
     unit_price_usd   REAL NOT NULL,
     value_usd        REAL NOT NULL,
-    supply_quality   TEXT NOT NULL CHECK (supply_quality IN ('live','fallback')),
-    price_quality    TEXT NOT NULL CHECK (price_quality IN ('live','fallback')),
+    supply_quality   TEXT NOT NULL CHECK (supply_quality IN ('live','fallback','manual')),
+    price_quality    TEXT NOT NULL CHECK (price_quality IN ('live','fallback','manual')),
     note             TEXT NOT NULL DEFAULT '',
     display_name     TEXT NOT NULL DEFAULT '',
     backing          TEXT NOT NULL DEFAULT ''

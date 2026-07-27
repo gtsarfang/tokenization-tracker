@@ -10,6 +10,11 @@ from enum import Enum
 class DataQuality(str, Enum):
     LIVE = "live"
     FALLBACK = "fallback"
+    # A figure with no live source at all (see TokenConfig.manual_value_usd) —
+    # deliberately, permanently manual rather than a live call that happened to
+    # fail. Distinct from FALLBACK so the UI can label it "manually tracked"
+    # instead of the "stale" badge implying a transient outage.
+    MANUAL = "manual"
 
 
 @dataclass(frozen=True)
@@ -56,10 +61,20 @@ class AssetClassResult:
     alt_pct_tokenized: float | None = None
 
     def is_stale(self) -> bool:
+        # MANUAL is excluded on purpose: it's a deliberate, permanent choice
+        # (no live source exists), not a live call that failed — the UI labels
+        # those components "manually tracked" instead of raising the "stale"
+        # badge, which should mean "this normally-live figure is out of date."
         if self.total.quality is DataQuality.FALLBACK:
             return True
         return any(
             c.supply_quality is DataQuality.FALLBACK
             or c.price_quality is DataQuality.FALLBACK
+            for c in self.components
+        )
+
+    def has_manual_components(self) -> bool:
+        return any(
+            c.supply_quality is DataQuality.MANUAL or c.price_quality is DataQuality.MANUAL
             for c in self.components
         )

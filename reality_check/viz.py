@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 import streamlit as st
 
-from reality_check.models import AssetClassResult
+from reality_check.models import AssetClassResult, DataQuality
 
 _MAX_LOG_TICKS = 8
 
@@ -249,6 +249,18 @@ def inject_base_css() -> None:
             font-size: 0.75rem;
             color: #b7791f;
         }
+        .rc-manual-tag {
+            font-size: 0.62rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: rgba(127, 127, 127, 0.9);
+            background: rgba(127, 127, 127, 0.12);
+            border-radius: 4px;
+            padding: 0.05rem 0.35rem;
+            margin-left: 0.4rem;
+            vertical-align: middle;
+        }
         .rc-header {
             background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
             color: #ffffff;
@@ -412,7 +424,18 @@ def _breakdown_html(result: AssetClassResult) -> str | None:
     rows = "".join(
         f'<div class="rc-breakdown-item">'
         f'<div class="rc-breakdown-row">'
-        f'<span class="rc-breakdown-name">{c.display_name or c.symbol}</span>'
+        f'<span class="rc-breakdown-name">{c.display_name or c.symbol}'
+        # A permanent, deliberate choice (no live source exists) — distinct
+        # from the card-level "stale" badge, which should mean "this
+        # normally-live figure happens to be out of date right now."
+        + (
+            ' <span class="rc-manual-tag" title="No live API available for this '
+            'figure — manually maintained, refreshed periodically.">manually '
+            "tracked</span>"
+            if c.supply_quality is DataQuality.MANUAL or c.price_quality is DataQuality.MANUAL
+            else ""
+        )
+        + "</span>"
         f'<span class="rc-breakdown-value">{_format_usd(c.value_usd)}</span>'
         f"</div>"
         + (f'<div class="rc-breakdown-backing">Backed by: {c.backing}</div>' if c.backing else "")
