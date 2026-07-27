@@ -75,7 +75,7 @@ for KAU (id `kinesis-gold`, which also supplies its aggregate supply figure).
 metals-price API. PAXG is redeemable 1:1 for a troy ounce of LBMA-good-delivery gold,
 so its market price is a reasonable live proxy for spot gold, and reuses the price
 call already needed for tokenized value. The same 1:1 relationship also means the
-raw token quantities double as the tokenized *weight* — the "mass" display mode
+raw token quantities double as the tokenized *weight* — the "unit" display mode
 sums PAXG + XAUT quantities directly, no extra fetch needed.
 
 **Total above-ground gold value** — `total_tonnes × troy_oz_per_tonne × spot_price`,

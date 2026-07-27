@@ -398,11 +398,15 @@ def _hero_html(
     quantity: tuple[str, str] | None,
 ) -> str:
     pct = _format_pct(result.pct_tokenized)
-    if mode == "mass" and quantity:
+    # "unit" means "this asset class's natural physical unit" (troy oz for
+    # gold/silver) where one exists. Treasuries has none — it's natively
+    # dollar-denominated — so "unit" there just means $, not a silent fall
+    # back to % (which "unit" wouldn't suggest to anyone).
+    if mode == "unit" and quantity:
         tokenized_qty, total_qty = quantity
         headline = tokenized_qty
         sub = f"tokenized of {total_qty} total {label.lower()} ({pct})"
-    elif mode == "$":
+    elif mode == "$" or mode == "unit":
         headline = _format_usd(result.tokenized_usd)
         sub = f"tokenized of {_format_usd(result.total.value_usd)} total {label.lower()} ({pct})"
     else:
@@ -428,7 +432,7 @@ def _hero_html(
 
 
 def _breakdown_html(result: AssetClassResult) -> str | None:
-    # Always shown regardless of display mode (%/$/mass) — this is supplementary
+    # Always shown regardless of display mode (%/$/unit) — this is supplementary
     # per-component detail (including what backs each token), not tied to the
     # headline's unit. Shown for single-component assets too, not just 2+ — the
     # "Backed by" text is the whole point, not a comparison between components.

@@ -75,7 +75,7 @@ def main() -> None:
 
     # One shared display-mode control for every card, instead of each card having
     # its own independent toggle (which let cards show inconsistent units at once).
-    mode = st.segmented_control("Display as", ["%", "$", "mass"], default="%", key="global_mode")
+    mode = st.segmented_control("Display as", ["%", "$", "unit"], default="%", key="global_mode")
 
     # Stacked full-width sections rather than a 3-per-row card grid — with only
     # three asset classes, narrow cards left a lot of empty space; a section per
