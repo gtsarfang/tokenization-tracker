@@ -23,6 +23,12 @@ TROY_OZ_PER_TONNE = 32_150.7466
 
 def format_tonnes(troy_oz: float) -> str:
     tonnes = troy_oz / TROY_OZ_PER_TONNE
+    # A decimal place is useful precision on a tokenized figure (110.1 t) but
+    # false precision on a huge, round total-stock constant (216,265.0 t reads
+    # like a measurement, not the estimate it actually is) — dropped above
+    # 1,000 t, where it's noise either way.
+    if tonnes >= 1_000:
+        return f"{tonnes:,.0f} t"
     if tonnes >= 1:
         return f"{tonnes:,.1f} t"
     return f"{tonnes * 1000:,.1f} kg"
