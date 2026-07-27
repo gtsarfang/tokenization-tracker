@@ -1,5 +1,8 @@
-"""Shared CoinGecko price fetcher. Reusable by any future asset-class source that
-prices a token via the free `/simple/price` endpoint."""
+"""Shared CoinGecko fetcher. All sources pull from one batched `/coins/markets`
+call (see `fetch_market_data`, called once app-wide in `app.py`) rather than each
+making their own request — CoinGecko's free, no-key tier has a tight rate limit,
+and with 8 tokens across 4 asset classes, separate per-source calls were enough
+to trigger 429s and show fallback data across the board."""
 
 from __future__ import annotations
 
@@ -12,52 +15,9 @@ from reality_check.models import DataQuality
 
 
 @dataclass(frozen=True)
-class PriceReading:
-    price_usd: float
-    quality: DataQuality
-    note: str
-
-
-@dataclass(frozen=True)
 class MarketSupply:
     total_supply: float | None
     note: str
-
-
-def fetch_cross_check_supply(
-    base_url: str,
-    coingecko_ids: Sequence[str],
-    timeout_seconds: float,
-) -> dict[str, MarketSupply]:
-    """Best-effort secondary supply reading from CoinGecko's `/coins/markets` endpoint,
-    used only to sanity-check the primary on-chain `totalSupply()` reading — an
-    on-chain read is already the ground truth for a specific contract, so this never
-    blocks or replaces the primary value, only flags if the two disagree by more than
-    expected (e.g. a wrong contract address or decimals bug)."""
-    try:
-        response = requests.get(
-            f"{base_url}/coins/markets",
-            params={"vs_currency": "usd", "ids": ",".join(coingecko_ids)},
-            timeout=timeout_seconds,
-        )
-        response.raise_for_status()
-        rows = response.json()
-    except (requests.RequestException, ValueError):
-        return {
-            coingecko_id: MarketSupply(None, "cross-check unavailable (CoinGecko request failed)")
-            for coingecko_id in coingecko_ids
-        }
-
-    by_id = {row["id"]: row for row in rows}
-    readings: dict[str, MarketSupply] = {}
-    for coingecko_id in coingecko_ids:
-        row = by_id.get(coingecko_id)
-        total_supply = row.get("total_supply") if row else None
-        if total_supply is None:
-            readings[coingecko_id] = MarketSupply(None, "cross-check unavailable (no data)")
-        else:
-            readings[coingecko_id] = MarketSupply(float(total_supply), "")
-    return readings
 
 
 def cross_check_note(onchain_quantity: float, market: MarketSupply, tolerance: float = 0.02) -> str:
@@ -103,18 +63,23 @@ def fetch_market_data(
     fallback_prices: dict[str, float],
     fallback_supplies: dict[str, float],
     timeout_seconds: float,
+    api_key: str = "",
 ) -> dict[str, MarketDataReading]:
-    """Primary price+supply source (via `/coins/markets`) for tokens natively minted
-    on multiple chains with independent per-chain supply (e.g. USDY, BUIDL) — for
-    those, a single-chain on-chain `totalSupply()` read would meaningfully undercount,
-    since there's no single canonical chain holding the full circulating supply.
-    CoinGecko aggregates `total_supply` across every chain it tracks for a coin id."""
+    """The one CoinGecko call the whole app makes (see `app.py`), covering every
+    token across every asset class in a single `/coins/markets` request — both
+    on-chain-read tokens (which only need price + a cross-check figure from here)
+    and aggregate-primary tokens (which need price + supply) pull from this same
+    batched response, rather than each source hitting CoinGecko independently.
+
+    `api_key`, if set (from `RC_COINGECKO_API_KEY`), uses CoinGecko's free Demo
+    plan for a higher rate limit than the fully anonymous public tier — optional,
+    no cost, not required for this app to function.
+    """
+    params: dict[str, str] = {"vs_currency": "usd", "ids": ",".join(coingecko_ids)}
+    if api_key:
+        params["x_cg_demo_api_key"] = api_key
     try:
-        response = requests.get(
-            f"{base_url}/coins/markets",
-            params={"vs_currency": "usd", "ids": ",".join(coingecko_ids)},
-            timeout=timeout_seconds,
-        )
+        response = requests.get(f"{base_url}/coins/markets", params=params, timeout=timeout_seconds)
         response.raise_for_status()
         by_id = {row["id"]: row for row in response.json()}
     except (requests.RequestException, ValueError) as exc:
@@ -151,52 +116,5 @@ def fetch_market_data(
                 market_cap=float(market_cap) if market_cap is not None else None,
                 quality=DataQuality.LIVE,
                 note="",
-            )
-    return readings
-
-
-def fetch_simple_prices(
-    base_url: str,
-    coingecko_ids: Sequence[str],
-    fallback_prices: dict[str, float],
-    timeout_seconds: float,
-) -> dict[str, PriceReading]:
-    """Fetches USD prices for `coingecko_ids` in a single request.
-
-    Falls back per-id (not all-or-nothing): if the whole request fails, every id
-    falls back to `fallback_prices`; if only some ids are missing from the response,
-    only those ids fall back.
-    """
-    try:
-        response = requests.get(
-            f"{base_url}/simple/price",
-            params={"ids": ",".join(coingecko_ids), "vs_currencies": "usd"},
-            timeout=timeout_seconds,
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError) as exc:
-        note = f"CoinGecko request failed ({exc.__class__.__name__}); used fallback price"
-        return {
-            coingecko_id: PriceReading(
-                price_usd=fallback_prices[coingecko_id],
-                quality=DataQuality.FALLBACK,
-                note=note,
-            )
-            for coingecko_id in coingecko_ids
-        }
-
-    readings: dict[str, PriceReading] = {}
-    for coingecko_id in coingecko_ids:
-        price = payload.get(coingecko_id, {}).get("usd")
-        if price is None:
-            readings[coingecko_id] = PriceReading(
-                price_usd=fallback_prices[coingecko_id],
-                quality=DataQuality.FALLBACK,
-                note=f"'{coingecko_id}' missing from CoinGecko response; used fallback price",
-            )
-        else:
-            readings[coingecko_id] = PriceReading(
-                price_usd=float(price), quality=DataQuality.LIVE, note=""
             )
     return readings

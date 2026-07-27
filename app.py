@@ -9,14 +9,18 @@ import sqlite3
 
 import streamlit as st
 
-from config import load_config
+from config import AppConfig, load_config
 from reality_check import registry, viz
 from reality_check.interfaces import AssetClassSource
 from reality_check.models import AssetClassResult
 from reality_check.orchestrator import refresh_asset_class
+from reality_check.sources.prices import MarketDataReading, fetch_market_data
 from reality_check.storage import get_connection, init_db
 
-_REFRESH_TTL_SECONDS = 300
+# How often live data (and the one shared CoinGecko fetch) refreshes. Kept long
+# on purpose: CoinGecko's free, no-key tier has a tight rate limit, and none of
+# this data moves fast enough to need refreshing more than once a day.
+_REFRESH_TTL_SECONDS = 24 * 60 * 60
 
 
 @st.cache_resource
@@ -24,6 +28,21 @@ def _get_connection(db_path: str) -> sqlite3.Connection:
     conn = get_connection(db_path)
     init_db(conn)
     return conn
+
+
+@st.cache_data(ttl=_REFRESH_TTL_SECONDS)
+def _load_market_data(config: AppConfig) -> dict[str, MarketDataReading]:
+    # The one CoinGecko call the whole app makes — every source reads from this
+    # shared result instead of fetching its own tokens independently.
+    tokens = registry.all_tokens(config)
+    return fetch_market_data(
+        config.coingecko_base_url,
+        [t.coingecko_id for t in tokens],
+        {t.coingecko_id: t.fallback_price_usd for t in tokens},
+        {t.coingecko_id: t.fallback_supply for t in tokens},
+        config.coingecko_timeout_seconds,
+        api_key=config.coingecko_api_key,
+    )
 
 
 @st.cache_data(ttl=_REFRESH_TTL_SECONDS)
@@ -40,7 +59,8 @@ def main() -> None:
 
     config = load_config()
     conn = _get_connection(config.db_path)
-    sources = registry.get_sources(config)
+    market_data = _load_market_data(config)
+    sources = registry.get_sources(config, market_data)
 
     viz.inject_base_css()
     viz.render_header(

@@ -256,12 +256,22 @@ copy .env.example .env          # optional — defaults work out of the box
 streamlit run app.py
 ```
 
-Each asset class re-fetches live data automatically at most once every 5 minutes
-(`st.cache_data(ttl=300)` in `app.py`) — no manual refresh button. This keeps the
-page responsive to UI interactions (like toggling %/$/mass) without re-hitting
-every API on each rerun, while still staying reasonably fresh. Each live fetch
-stores a new snapshot in SQLite (`data/reality_check.db`); history is preserved
-across runs, enabling future charting of % tokenized over time.
+Live data refreshes automatically at most once every 24 hours
+(`st.cache_data(ttl=86400)` in `app.py`) — no manual refresh button. None of this
+data moves fast enough to need refreshing more often, and CoinGecko's free,
+no-key tier has a tight rate limit that a shorter interval was enough to trip.
+
+Every token across every asset class shares **one** batched CoinGecko
+`/coins/markets` call (`registry.all_tokens()` + `app.py`'s `_load_market_data`),
+instead of each source fetching its own tokens independently — 8 tokens used to
+mean up to 6 separate CoinGecko requests per refresh, occasionally enough to
+trigger 429s and show fallback data across every card at once. An optional free
+CoinGecko [Demo API key](https://www.coingecko.com/en/api/pricing) (`RC_COINGECKO_API_KEY`
+in `.env`) raises the rate limit further if needed, but isn't required.
+
+Each live fetch stores a new snapshot in SQLite (`data/reality_check.db`);
+history is preserved across runs, enabling future charting of % tokenized over
+time.
 
 The Streamlit "Deploy" toolbar button is hidden by default (`.streamlit/config.toml`,
 `toolbarMode = "minimal"`) since this app isn't meant to be one-click-deployed from a

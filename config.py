@@ -88,6 +88,10 @@ class AppConfig:
     rpc_timeout_seconds: float
     coingecko_base_url: str
     coingecko_timeout_seconds: float
+    # Optional free CoinGecko Demo API key (RC_COINGECKO_API_KEY) for a higher
+    # rate limit than the fully anonymous public tier. Not required — the app
+    # works without one, just with a tighter rate limit.
+    coingecko_api_key: str
     db_path: str
     gold: GoldConfig
     silver: SilverConfig
@@ -332,6 +336,7 @@ def load_config() -> AppConfig:
         coingecko_timeout_seconds=float(
             os.environ.get("RC_COINGECKO_TIMEOUT_SECONDS", "8.0")
         ),
+        coingecko_api_key=os.environ.get("RC_COINGECKO_API_KEY", ""),
         db_path=os.environ.get("RC_DB_PATH", "data/reality_check.db"),
         gold=_GOLD_CONFIG,
         silver=_SILVER_CONFIG,

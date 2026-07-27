@@ -13,18 +13,18 @@ from __future__ import annotations
 
 from config import TROY_OZ_PER_TONNE, AppConfig, format_tonnes
 from reality_check.models import AssetClassResult, ComponentValue, TotalValue
-from reality_check.sources.prices import MarketDataReading, consistency_note, fetch_market_data
+from reality_check.sources.prices import MarketDataReading, consistency_note
 
 
 class SilverSource:
     asset_class: str = "silver"
 
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, config: AppConfig, market_data: dict[str, MarketDataReading]) -> None:
         self._config = config
-        self._market_cache: dict[str, MarketDataReading] | None = None
+        self._market_data = market_data
 
     def fetch_tokenized(self) -> tuple[ComponentValue, ...]:
-        market = self._get_market_data()
+        market = self._market_data
 
         components = []
         for token in self._config.silver.tokens:
@@ -52,7 +52,7 @@ class SilverSource:
         # share's NAV, which can drift slightly from spot over time (expense
         # ratio drag).
         spot_token = silver.tokens[0]
-        spot = self._get_market_data()[spot_token.coingecko_id]
+        spot = self._market_data[spot_token.coingecko_id]
         total_usd = silver.total_tonnes * TROY_OZ_PER_TONNE * spot.price_usd
         basis_note = (
             f"{silver.total_tonnes:,.0f} t ({silver.source_citation}) "
@@ -66,8 +66,9 @@ class SilverSource:
         spot_token = silver.tokens[0]
         return (
             f"**Tokenized supply & price** — fetched live from CoinGecko's "
-            "`/coins/markets` endpoint (`total_supply × current_price`), *not* "
-            f"read on-chain directly. {spot_token.symbol} is natively minted on "
+            "`/coins/markets` endpoint (`total_supply × current_price`), part of "
+            "one shared request covering every token across every asset class "
+            f"in this app, *not* read on-chain directly. {spot_token.symbol} is natively minted on "
             "Kinesis's own ledger (a Stellar fork); its Ethereum ERC-20 contract "
             "is only a secondary 'wrapped' representation holding a small "
             "fraction of total supply. SLVON (Ondo's tokenized iShares Silver "
@@ -118,18 +119,3 @@ class SilverSource:
         tokenized_oz = sum(c.quantity for c in result.components)
         total_oz = self._config.silver.total_tonnes * TROY_OZ_PER_TONNE
         return (format_tonnes(tokenized_oz), format_tonnes(total_oz))
-
-    def _get_market_data(self) -> dict[str, MarketDataReading]:
-        if self._market_cache is None:
-            silver = self._config.silver
-            coingecko_ids = [token.coingecko_id for token in silver.tokens]
-            fallback_prices = {t.coingecko_id: t.fallback_price_usd for t in silver.tokens}
-            fallback_supplies = {t.coingecko_id: t.fallback_supply for t in silver.tokens}
-            self._market_cache = fetch_market_data(
-                self._config.coingecko_base_url,
-                coingecko_ids,
-                fallback_prices,
-                fallback_supplies,
-                self._config.coingecko_timeout_seconds,
-            )
-        return self._market_cache

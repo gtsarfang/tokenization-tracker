@@ -6,18 +6,33 @@ module, then add one line here.
 
 from __future__ import annotations
 
-from config import AppConfig
+from config import AppConfig, TokenConfig
 from reality_check.interfaces import AssetClassSource
 from reality_check.sources.gold import GoldSource
+from reality_check.sources.prices import MarketDataReading
 from reality_check.sources.private_credit import PrivateCreditSource
 from reality_check.sources.silver import SilverSource
 from reality_check.sources.treasuries import TreasurySource
 
 
-def get_sources(config: AppConfig) -> dict[str, AssetClassSource]:
+def get_sources(
+    config: AppConfig, market_data: dict[str, MarketDataReading]
+) -> dict[str, AssetClassSource]:
     return {
-        "gold": GoldSource(config),
-        "silver": SilverSource(config),
-        "treasuries": TreasurySource(config),
-        "private_credit": PrivateCreditSource(config),
+        "gold": GoldSource(config, market_data),
+        "silver": SilverSource(config, market_data),
+        "treasuries": TreasurySource(config, market_data),
+        "private_credit": PrivateCreditSource(config, market_data),
     }
+
+
+def all_tokens(config: AppConfig) -> list[TokenConfig]:
+    """Every TokenConfig across every asset class, for the one shared batched
+    CoinGecko fetch (see `app.py`)."""
+    token_groups = (
+        config.gold.tokens,
+        config.silver.tokens,
+        config.treasuries.tokens,
+        config.private_credit.tokens,
+    )
+    return [token for tokens in token_groups for token in tokens]

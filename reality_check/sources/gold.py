@@ -1,20 +1,20 @@
-"""Gold asset-class source: PAXG + XAUT tokenized supply vs. total above-ground
-gold value. Reference implementation of AssetClassSource for future asset classes."""
+"""Gold asset-class source: PAXG + XAUT + KAU tokenized supply vs. total
+above-ground gold value. Reference implementation of AssetClassSource for
+future asset classes.
+
+Takes a pre-fetched `market_data` dict (see `app.py`) rather than calling
+CoinGecko itself — every source shares one batched `/coins/markets` request
+covering all tokens app-wide, instead of each source hitting CoinGecko
+independently (which was enough separate calls to trigger rate limiting).
+"""
 
 from __future__ import annotations
 
 from config import TROY_OZ_PER_TONNE, AppConfig, TokenConfig, format_tonnes
-from reality_check.models import AssetClassResult, ComponentValue, TotalValue
+from reality_check.models import AssetClassResult, ComponentValue, DataQuality, TotalValue
 from reality_check.sources.defillama import defillama_cross_check_note, fetch_protocol_tvl
 from reality_check.sources.onchain import get_web3, read_erc20_total_supply
-from reality_check.sources.prices import (
-    PriceReading,
-    consistency_note,
-    cross_check_note,
-    fetch_cross_check_supply,
-    fetch_market_data,
-    fetch_simple_prices,
-)
+from reality_check.sources.prices import MarketDataReading, MarketSupply, consistency_note, cross_check_note
 
 # PAXG is redeemable 1:1 for a troy ounce of LBMA-good-delivery gold, so its market
 # price is used as a live proxy for spot gold price (avoids a separate metals API).
@@ -24,9 +24,9 @@ _GOLD_SPOT_PROXY_COINGECKO_ID = "pax-gold"
 class GoldSource:
     asset_class: str = "gold"
 
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, config: AppConfig, market_data: dict[str, MarketDataReading]) -> None:
         self._config = config
-        self._price_cache: dict[str, PriceReading] | None = None
+        self._market_data = market_data
 
     def fetch_tokenized(self) -> tuple[ComponentValue, ...]:
         onchain_tokens = [t for t in self._config.gold.tokens if t.read_onchain]
@@ -41,12 +41,6 @@ class GoldSource:
         if not tokens:
             return []
         w3 = get_web3(self._config.rpc_url, self._config.rpc_timeout_seconds)
-        prices = self._get_prices()
-        cross_checks = fetch_cross_check_supply(
-            self._config.coingecko_base_url,
-            [token.coingecko_id for token in tokens],
-            self._config.coingecko_timeout_seconds,
-        )
 
         components = []
         for token in tokens:
@@ -56,9 +50,15 @@ class GoldSource:
                 token.expected_decimals,
                 token.fallback_supply,
             )
-            price = prices[token.coingecko_id]
-            value_usd = supply.quantity * price.price_usd
-            verification = cross_check_note(supply.quantity, cross_checks[token.coingecko_id])
+            market = self._market_data[token.coingecko_id]
+            value_usd = supply.quantity * market.price_usd
+            if market.quality is DataQuality.FALLBACK:
+                # market.total_supply here is our own fallback constant, not a
+                # live CoinGecko figure — comparing against it would misreport
+                # a match/mismatch as if it meant something.
+                verification = market.note
+            else:
+                verification = cross_check_note(supply.quantity, MarketSupply(market.total_supply, ""))
             defillama_note = ""
             if token.defillama_slug:
                 defillama_reading = fetch_protocol_tvl(
@@ -69,13 +69,11 @@ class GoldSource:
                 ComponentValue(
                     symbol=token.symbol,
                     quantity=supply.quantity,
-                    unit_price_usd=price.price_usd,
+                    unit_price_usd=market.price_usd,
                     value_usd=value_usd,
                     supply_quality=supply.quality,
-                    price_quality=price.quality,
-                    note="; ".join(
-                        n for n in (supply.note, price.note, verification, defillama_note) if n
-                    ),
+                    price_quality=market.quality,
+                    note="; ".join(n for n in (supply.note, verification, defillama_note) if n),
                     display_name=f"{token.issuer} {token.symbol}",
                     backing=token.backing,
                 )
@@ -86,18 +84,9 @@ class GoldSource:
         # For tokens where the Ethereum contract doesn't hold the full supply
         # (e.g. natively minted on another ledger) — same CoinGecko-aggregate
         # pattern as silver.py/treasuries.py, not an on-chain read.
-        if not tokens:
-            return []
-        market = fetch_market_data(
-            self._config.coingecko_base_url,
-            [token.coingecko_id for token in tokens],
-            {t.coingecko_id: t.fallback_price_usd for t in tokens},
-            {t.coingecko_id: t.fallback_supply for t in tokens},
-            self._config.coingecko_timeout_seconds,
-        )
         components = []
         for token in tokens:
-            reading = market[token.coingecko_id]
+            reading = self._market_data[token.coingecko_id]
             check = consistency_note(reading)
             components.append(
                 ComponentValue(
@@ -116,7 +105,7 @@ class GoldSource:
 
     def fetch_total(self) -> TotalValue:
         gold = self._config.gold
-        spot = self._get_prices()[_GOLD_SPOT_PROXY_COINGECKO_ID]
+        spot = self._market_data[_GOLD_SPOT_PROXY_COINGECKO_ID]
         total_usd = gold.total_tonnes * TROY_OZ_PER_TONNE * spot.price_usd
         basis_note = (
             f"{gold.total_tonnes:,.0f} t ({gold.source_citation}) "
@@ -154,9 +143,9 @@ class GoldSource:
             "another chain, that's done by locking the mainnet tokens (which stay "
             "counted in mainnet `totalSupply`) and minting a claim elsewhere — not "
             "additional gold — so bridging doesn't cause double-counting either.\n\n"
-            "**Prices** — fetched live from the CoinGecko free API "
-            f"(`{onchain_symbols}` via `/simple/price`; `{aggregate_symbols}` via "
-            "`/coins/markets`, which also supplies its supply figure).\n\n"
+            "**Prices** — fetched live from CoinGecko's `/coins/markets` endpoint, "
+            "one shared request covering every token across every asset class "
+            "in this app (see `app.py`), not a separate call per source.\n\n"
             "**Gold spot price** — derived from PAXG's market price rather than a "
             "separate metals API, since PAXG is redeemable 1:1 for a troy ounce of "
             "LBMA-good-delivery gold.\n\n"
@@ -185,20 +174,3 @@ class GoldSource:
         tokenized_oz = sum(c.quantity for c in result.components)
         total_oz = self._config.gold.total_tonnes * TROY_OZ_PER_TONNE
         return (format_tonnes(tokenized_oz), format_tonnes(total_oz))
-
-    def _get_prices(self) -> dict[str, PriceReading]:
-        # Only on-chain-read tokens need this (price only, supply comes from the
-        # chain); aggregate tokens get price+supply together via fetch_market_data.
-        if self._price_cache is None:
-            onchain_tokens = [t for t in self._config.gold.tokens if t.read_onchain]
-            coingecko_ids = [token.coingecko_id for token in onchain_tokens]
-            fallback_prices = {
-                token.coingecko_id: token.fallback_price_usd for token in onchain_tokens
-            }
-            self._price_cache = fetch_simple_prices(
-                self._config.coingecko_base_url,
-                coingecko_ids,
-                fallback_prices,
-                self._config.coingecko_timeout_seconds,
-            )
-        return self._price_cache

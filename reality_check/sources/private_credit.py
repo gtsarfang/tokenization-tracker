@@ -14,18 +14,18 @@ from __future__ import annotations
 
 from config import AppConfig
 from reality_check.models import AssetClassResult, ComponentValue, DataQuality, TotalValue
-from reality_check.sources.prices import MarketDataReading, consistency_note, fetch_market_data
+from reality_check.sources.prices import MarketDataReading, consistency_note
 
 
 class PrivateCreditSource:
     asset_class: str = "private_credit"
 
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, config: AppConfig, market_data: dict[str, MarketDataReading]) -> None:
         self._config = config
-        self._market_cache: dict[str, MarketDataReading] | None = None
+        self._market_data = market_data
 
     def fetch_tokenized(self) -> tuple[ComponentValue, ...]:
-        market = self._get_market_data()
+        market = self._market_data
 
         components = []
         for token in self._config.private_credit.tokens:
@@ -102,18 +102,3 @@ class PrivateCreditSource:
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
         return None  # no natural physical unit for private credit
-
-    def _get_market_data(self) -> dict[str, MarketDataReading]:
-        if self._market_cache is None:
-            private_credit = self._config.private_credit
-            coingecko_ids = [token.coingecko_id for token in private_credit.tokens]
-            fallback_prices = {t.coingecko_id: t.fallback_price_usd for t in private_credit.tokens}
-            fallback_supplies = {t.coingecko_id: t.fallback_supply for t in private_credit.tokens}
-            self._market_cache = fetch_market_data(
-                self._config.coingecko_base_url,
-                coingecko_ids,
-                fallback_prices,
-                fallback_supplies,
-                self._config.coingecko_timeout_seconds,
-            )
-        return self._market_cache

@@ -16,7 +16,7 @@ import requests
 from config import AppConfig
 from reality_check.models import AssetClassResult, ComponentValue, DataQuality, TotalValue
 from reality_check.sources.defillama import fetch_protocol_tvl
-from reality_check.sources.prices import MarketDataReading, consistency_note, fetch_market_data
+from reality_check.sources.prices import MarketDataReading, consistency_note
 
 _DEBT_TO_PENNY_URL = (
     "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny"
@@ -55,12 +55,12 @@ def _fetch_debt_held_by_public(timeout_seconds: float, fallback_value_usd: float
 class TreasurySource:
     asset_class: str = "treasuries"
 
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, config: AppConfig, market_data: dict[str, MarketDataReading]) -> None:
         self._config = config
-        self._market_cache: dict[str, MarketDataReading] | None = None
+        self._market_data = market_data
 
     def fetch_tokenized(self) -> tuple[ComponentValue, ...]:
-        market = self._get_market_data()
+        market = self._market_data
 
         components = []
         for token in self._config.treasuries.tokens:
@@ -168,18 +168,3 @@ class TreasurySource:
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
         return None  # no natural physical unit for Treasuries
-
-    def _get_market_data(self) -> dict[str, MarketDataReading]:
-        if self._market_cache is None:
-            treasuries = self._config.treasuries
-            coingecko_ids = [token.coingecko_id for token in treasuries.tokens]
-            fallback_prices = {t.coingecko_id: t.fallback_price_usd for t in treasuries.tokens}
-            fallback_supplies = {t.coingecko_id: t.fallback_supply for t in treasuries.tokens}
-            self._market_cache = fetch_market_data(
-                self._config.coingecko_base_url,
-                coingecko_ids,
-                fallback_prices,
-                fallback_supplies,
-                self._config.coingecko_timeout_seconds,
-            )
-        return self._market_cache
