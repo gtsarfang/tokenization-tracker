@@ -319,6 +319,95 @@ _USYC = TokenConfig(
     read_onchain=False,
 )
 
+_JTRSY = TokenConfig(
+    symbol="JTRSY",
+    issuer="Janus Henderson",
+    backing=(
+        "Shares in the Janus Henderson Anemoy Treasury Fund, managed by Anemoy "
+        "Capital and issued via the Centrifuge protocol, holding short-term US "
+        "Treasury bills."
+    ),
+    contract_address="0x8c213EE79581Ff4984583C6a801e5263418C4b86",
+    expected_decimals=6,
+    coingecko_id="janus-henderson-anemoy-treasury-fund",
+    # Manual fallback, last observed 2026-07-27. Refresh periodically from
+    # https://www.coingecko.com/en/coins/janus-henderson-anemoy-treasury-fund
+    fallback_supply=783_691_014.92,
+    fallback_price_usd=1.11,
+    # No dedicated slug — DefiLlama's "centrifuge-protocol" bundles multiple
+    # Centrifuge-issued funds beyond just JTRSY, not a clean match.
+    defillama_slug="",
+    # Natively minted independently across Ethereum, Base, Plume, Monad, and
+    # Avalanche — same no-single-canonical-chain issue as the other tokens here.
+    read_onchain=False,
+)
+
+_USTB = TokenConfig(
+    symbol="USTB",
+    issuer="Superstate",
+    backing=(
+        "Shares in Superstate's Short Duration US Government Securities Fund "
+        "(distributed in partnership with Invesco), holding short-term US "
+        "Treasury and agency securities."
+    ),
+    contract_address="0x43415eB6ff9DB7E26A15b704e7A3eDCe97d31C4e",
+    expected_decimals=6,
+    coingecko_id="superstate-short-duration-us-government-securities-fund-ustb",
+    # Manual fallback, last observed 2026-07-27. Refresh periodically from
+    # https://www.coingecko.com/en/coins/invesco-short-duration-us-government-securities-fund
+    fallback_supply=73_558_941.61,
+    fallback_price_usd=11.16,
+    defillama_slug="",
+    # Natively minted independently across Ethereum, Plume, and Solana — same
+    # no-single-canonical-chain issue as the other tokens here.
+    read_onchain=False,
+)
+
+_OUSG = TokenConfig(
+    symbol="OUSG",
+    issuer="Ondo",
+    backing=(
+        "Shares in Ondo's short-term US Treasury bill fund, whose portfolio is "
+        "held primarily via the iShares Short Treasury Bond ETF (SHV)."
+    ),
+    contract_address="0x1B19C19393e2d034D8Ff31ff34c81252fcBbee92",
+    expected_decimals=18,
+    coingecko_id="ousg",
+    # Manual fallback, last observed 2026-07-27. Refresh periodically from
+    # https://www.coingecko.com/en/coins/ousg
+    # Note: CoinGecko's own market cap ($409M) runs ~15% below rwa.xyz's ($481M)
+    # for this one — bigger gap than the other tokens here, but still the same
+    # multi-chain-aggregate situation, not a sign of a wrong source.
+    fallback_supply=3_525_544.62,
+    fallback_price_usd=116.00,
+    # No dedicated slug — "ondo-yield-assets" tracks USDY, not OUSG, and using
+    # it here would double-count against the USDY row above.
+    defillama_slug="",
+    # Natively minted independently across Ethereum, Solana, and Polygon — same
+    # no-single-canonical-chain issue as the other tokens here.
+    read_onchain=False,
+)
+
+_WTGXX = TokenConfig(
+    symbol="WTGXX",
+    issuer="WisdomTree",
+    backing=(
+        "Shares in WisdomTree's regulated money market fund investing in "
+        "short-term US government securities."
+    ),
+    contract_address="0x1FECf3D9d4FEe7f2c02917A66028A48c6706C179",
+    expected_decimals=18,
+    coingecko_id="wisdomtree-treasury-money-market-digital-fund",
+    # Manual fallback, last observed 2026-07-27. Refresh periodically from
+    # https://www.coingecko.com/en/coins/wisdomtree-treasury-money-market-digital-fund
+    fallback_supply=736_592_592.0,
+    fallback_price_usd=1.00,
+    defillama_slug="",
+    # Natively minted independently across Ethereum, Arbitrum, Base, Plume, and
+    # Stellar — same no-single-canonical-chain issue as the other tokens here.
+    read_onchain=False,
+)
+
 _TREASURY_CONFIG = TreasuryConfig(
     # US Treasury Fiscal Data, "Debt Held by the Public" (Debt to the Penny),
     # 2026-07-23: $31.91T (latest available as of 2026-07-26). Used only if the
@@ -329,8 +418,19 @@ _TREASURY_CONFIG = TreasuryConfig(
     # BlackRock's BUIDL and Ondo's USDY were the two largest tokenized US
     # Treasury products; Circle's USYC (Hashnote's US Yield Coin, ~$3.0B AUM as
     # of 2026-07-26, per CoinGecko and DefiLlama agreeing closely) is now
-    # comparable in size to BUIDL and is added alongside them.
-    tokens=(_BUIDL, _USDY, _USYC),
+    # comparable in size to BUIDL and is added alongside them. A 2026-07-27
+    # coverage review (cross-checked against rwa.xyz's full ranked list, which
+    # corrected several wrong estimates from an earlier, blog-sourced pass)
+    # added WisdomTree's WTGXX (~$737M), Janus Henderson's JTRSY (~$870M, issued
+    # via Centrifuge), Superstate's USTB (~$820M, distributed with Invesco), and
+    # Ondo's OUSG (~$409M) — each independently >5% of the running total (OUSG
+    # borderline; see its comment above). Franklin Templeton's BENJI/iBENJI and
+    # JPMorgan's JLTXX (Kinexys) are bigger gaps still (~$2.5B and ~$811M) but
+    # have no trustworthy live-fetchable source: CoinGecko's BENJI listing
+    # undercounts by ~10x and JLTXX has no supply/price data at all (both are
+    # permissioned/private-ledger products, not really tracked). ChinaAMC's
+    # CUMIU (~$550M) isn't on CoinGecko or DefiLlama at all.
+    tokens=(_BUIDL, _USDY, _USYC, _JTRSY, _USTB, _OUSG, _WTGXX),
 )
 
 

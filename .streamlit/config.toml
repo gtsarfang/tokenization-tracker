@@ -7,3 +7,6 @@ textColor = "#111827"
 
 [client]
 toolbarMode = "minimal"
+
+[server]
+runOnSave = true

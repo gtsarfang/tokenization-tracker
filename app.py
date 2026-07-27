@@ -74,23 +74,18 @@ def main() -> None:
     # its own independent toggle (which let cards show inconsistent units at once).
     mode = st.segmented_control("Display as", ["%", "$", "mass"], default="%", key="global_mode")
 
-    names = list(sources.keys())
-    cards_per_row = 3
-    for row_start in range(0, len(names), cards_per_row):
-        row_names = names[row_start : row_start + cards_per_row]
-        columns = st.columns(cards_per_row)
-        for column, name in zip(columns, row_names):
-            with column:
-                source = sources[name]
-                result = results[name]
-
-                viz.render_asset_bar(
-                    result,
-                    key=name,
-                    methodology=source.describe_methodology(),
-                    quantity=source.describe_quantity(result),
-                    mode=mode or "%",
-                )
+    # Stacked full-width sections rather than a 3-per-row card grid — with only
+    # three asset classes, narrow cards left a lot of empty space; a section per
+    # asset uses the width for the log-scale bar instead of cramming it.
+    for name, source in sources.items():
+        result = results[name]
+        viz.render_asset_section(
+            result,
+            key=name,
+            methodology=source.describe_methodology(),
+            quantity=source.describe_quantity(result),
+            mode=mode or "%",
+        )
 
 
 if __name__ == "__main__":

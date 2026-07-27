@@ -1,5 +1,11 @@
 # Tokenization Tracker
 
+A live dashboard measuring how much of gold, silver, and US Treasuries has
+actually moved on-chain — and the methodology fights that went into getting
+each number right (undercounts, double-counts, and the wrong turns along the
+way are documented, not hidden). **[Live demo](#)** — replace with the
+deployed URL.
+
 How much of a real-world asset class has moved on-chain so far? This app tracks
 tokenization's growth, one asset class at a time: a big headline stat (%, $, or —
 where it makes sense — physical units), then two stacked bars comparing tokenized
@@ -13,7 +19,8 @@ inferred from a dot's position.
 
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
 **silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
-(BUIDL + USDY + USYC vs. total US Treasury debt held by the public). Cards render in a
+(BUIDL + USDY + USYC + JTRSY + USTB + OUSG + WTGXX vs. total US Treasury debt
+held by the public). Cards render in a
 3-per-row grid (wide page layout) that keeps filling out as more asset classes
 are added.
 
@@ -176,13 +183,18 @@ resolve which one was right. (Gold's PAXG/XAUT don't have this problem — on-ch
 reads, CoinGecko, and DefiLlama all agree within 0.5%, confirming they really are
 single-canonical-chain tokens with no bridging ambiguity.)
 
-BUIDL, USDY, and USYC are the largest tokenized US Treasury products (as of
-2026-07-26, USYC ~$3.0B AUM per CoinGecko and DefiLlama agreeing closely).
-Smaller products aren't included yet — a candidate for future additions, not
-excluded on principle, so this remains an undercount, never an overcount. No
-double-counting: all three are independently managed funds holding their own
-short-term Treasury bills and repo positions, not wrapped/derivative versions
-of each other.
+BUIDL, USDY, USYC, and — added 2026-07-27 after a coverage review against
+rwa.xyz's full ranked list — Janus Henderson's JTRSY (issued via Centrifuge),
+Superstate's USTB (distributed with Invesco), Ondo's OUSG, and WisdomTree's
+WTGXX are the tokenized US Treasury products confirmed clean so far (as of
+2026-07-26, USYC ~$3.0B AUM per CoinGecko and DefiLlama agreeing closely; the
+four newer ones ~$400M-$870M each, all corroborated within ~15% by rwa.xyz).
+That review also corrected an earlier, blog-sourced estimate of the gap that
+had turned out to be wrong in several places — see "Roadmap / known gaps"
+below for what's still missing and why. This remains an undercount, never an
+overcount. No double-counting: all seven are independently managed
+funds/vehicles holding their own short-term Treasury bills and repo positions,
+not wrapped/derivative versions of each other.
 
 **Total Treasury debt** — fetched **live** on every refresh from the US Treasury's
 own [Fiscal Data API](https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/)
@@ -316,23 +328,38 @@ them.
 
 ## Roadmap / known gaps
 
-- **On-chart investment-stock marker** — gold/silver show a "vs. investment stock
-  only" figure as a secondary line under the headline stat (`viz._hero_html`), but
-  an earlier attempt to also plot it as a dot on the log-scale bar kept hitting CSS
-  positioning bugs (label overflow past the card edge, dot misaligned from the
-  track) and was pulled for time. The underlying data (`AssetClassResult.alt_total`
-  / `alt_pct_tokenized`) is already there — a chart marker is a viz-only addition,
-  no source/calc changes needed.
 - **US private credit** — removed earlier for a category mismatch (HELOC vs.
   institutional business lending denominator); revisit with a properly matched
   denominator (e.g. total US home equity/HELOC lending) or drop it for a different
   private-credit product.
-- **More Treasury products** — USYC is in; Circle also has other products, and
-  smaller tokenized Treasury funds exist that aren't included yet (undercount by
-  design, not urgent).
-- **Tokenized real estate / money market funds** — candidate next asset classes;
-  money market funds (e.g. Franklin Templeton's BENJI) have a cleaner denominator
-  (ICI-published US MMF AUM) than real estate's much murkier total-market-value
-  figure.
+- **More Treasury products** — current total (~$10.6B: BUIDL + USDY + USYC +
+  JTRSY + USTB + OUSG + WTGXX) is still a real undercount, not just a rounding
+  gap. **Janus Henderson JTRSY** (~$870M, issued via Centrifuge), **Superstate
+  USTB** (~$820M, distributed with Invesco), **Ondo OUSG** (~$409M), and
+  **WisdomTree WTGXX** (~$737M) were wired in 2026-07-27 via their CoinGecko
+  listings, same multi-chain-aggregate approach as BUIDL/USDY/USYC.
+  - This 2026-07-27 pass also **corrected an earlier gap estimate that turned
+    out to be wrong** — it had been built from blog aggregator sources instead
+    of rwa.xyz directly, and named "Spiko ~$2.2B", "Kinexys ~$913M",
+    "Centrifuge ~$891M", and "Libeara ~$786M" as top candidates. Checked
+    directly against rwa.xyz's own ranked list: Spiko's actual fund (USTBL) is
+    only ~$145M (well under the 5% bar), and Kinexys/Centrifuge/Libeara don't
+    appear as named issuers in rwa.xyz's list at all — likely fabricated or
+    conflated by the blog sources. "Centrifuge" turned out to really be JTRSY
+    (Centrifuge is the issuing protocol, Janus Henderson/Anemoy the manager) —
+    now wired in above.
+  - **Still-open gaps, confirmed directly against rwa.xyz (checked
+    2026-07-27):** **Franklin Templeton BENJI + iBENJI** (~$735M + ~$1.76B
+    combined, distributing/accumulating share classes of the same fund,
+    FOBXX) and **JPMorgan JLTXX** ("Kinexys", ~$811M) are the two biggest
+    remaining gaps, but neither has a trustworthy live-fetchable source yet:
+    CoinGecko's `franklin-templeton-benji` listing undercounts by ~10x
+    (`total_supply` implies ~$226M vs. rwa.xyz's ~$735M for BENJI alone, and
+    there's no separate iBENJI listing at all), and JLTXX has no
+    price/supply/contract data on CoinGecko at all (both are effectively
+    permissioned/private-ledger products, not really tracked by public
+    aggregators). **ChinaAMC CUMIU** (~$550M) isn't listed on CoinGecko or
+    DefiLlama either. OpenEden (~$256M, ~2%) is now the largest one checked
+    that's genuinely *under* 5% of the current total.
 - **% tokenized over time** — snapshots are already stored in SQLite on every
   live refresh (see "Running locally" above); nothing charts that history yet.

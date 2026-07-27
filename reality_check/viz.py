@@ -92,21 +92,15 @@ def inject_base_css() -> None:
     st.markdown(
         """
         <style>
-        .rc-accent-bar {
-            height: 4px;
-            width: 100%;
-            border-radius: 3px;
-            margin-bottom: 0.9rem;
-        }
         .rc-card-header {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
-            margin-bottom: 0.4rem;
+            gap: 0.4rem;
+            margin-bottom: 0.2rem;
         }
         .rc-icon-badge {
-            width: 40px;
-            height: 40px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -114,46 +108,47 @@ def inject_base_css() -> None:
             background: rgba(127, 127, 127, 0.1);
             flex-shrink: 0;
         }
-        .rc-card-title { font-size: 1.15rem; font-weight: 700; }
-        .rc-hero { margin: 0.25rem 0 0.5rem 0; }
-        .rc-hero-pct { font-size: 2.5rem; font-weight: 700; line-height: 1.1; }
-        .rc-hero-sub { font-size: 1rem; color: rgba(127, 127, 127, 0.9); }
-        .rc-hero-alt { font-size: 0.8rem; color: rgba(127, 127, 127, 0.75); margin-top: 0.15rem; }
+        .rc-icon-badge svg { width: 16px; height: 16px; }
+        .rc-card-title { font-size: 1.05rem; font-weight: 700; }
+        .rc-hero { margin: 0.05rem 0 0.15rem 0; }
+        .rc-hero-pct { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+        .rc-hero-sub { font-size: 0.76rem; color: rgba(127, 127, 127, 0.9); }
+        .rc-hero-alt { font-size: 0.68rem; color: rgba(127, 127, 127, 0.75); margin-top: 0.05rem; }
         .rc-breakdown {
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
-            margin: 0.6rem 0 0.4rem 0;
-            padding: 0.7rem 0.9rem;
+            gap: 0.3rem;
+            margin: 0.3rem 0 0.15rem 0;
+            padding: 0.4rem 0.6rem;
             background: rgba(127, 127, 127, 0.06);
             border-radius: 8px;
         }
         .rc-breakdown-item:not(:last-child) {
-            padding-bottom: 0.6rem;
+            padding-bottom: 0.3rem;
             border-bottom: 1px solid rgba(127, 127, 127, 0.15);
         }
         .rc-breakdown-row {
             display: flex;
             justify-content: space-between;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
         }
         .rc-breakdown-name { font-weight: 600; }
         .rc-breakdown-value { font-weight: 600; }
         .rc-breakdown-backing {
-            font-size: 0.78rem;
+            font-size: 0.68rem;
             color: rgba(127, 127, 127, 0.85);
-            margin-top: 0.2rem;
-            line-height: 1.4;
+            margin-top: 0.1rem;
+            line-height: 1.3;
         }
         .rc-scale-caption {
-            font-size: 0.68rem;
+            font-size: 0.62rem;
             color: rgba(127, 127, 127, 0.65);
-            margin-top: 1.6rem;
+            margin-top: 1.3rem;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
-        .rc-log-wrap { position: relative; margin: 2rem 0.25rem 0.4rem 0.25rem; }
+        .rc-log-wrap { position: relative; margin: 1.3rem 0.25rem 0.3rem 0.25rem; }
         .rc-log-track {
             position: relative;
             height: 6px;
@@ -220,11 +215,33 @@ def inject_base_css() -> None:
         .rc-log-dot-label-end {
             transform: translateX(-100%);
         }
+        /* Smaller, muted marker for a secondary reference point (e.g. gold/
+        silver's "investment stock" figure) — label sits below the track so
+        it never collides with the Tokenized/Total labels above it. */
+        .rc-log-dot-sub {
+            position: absolute;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #ffffff;
+            background: rgba(127, 127, 127, 0.6);
+        }
+        .rc-log-dot-label-sub {
+            position: absolute;
+            top: 22px;
+            transform: translateX(-50%);
+            font-size: 0.62rem;
+            font-weight: 600;
+            color: rgba(127, 127, 127, 0.85);
+            white-space: nowrap;
+        }
         .rc-multiplier-callout {
-            font-size: 0.78rem;
+            font-size: 0.7rem;
             font-weight: 600;
             color: rgba(127, 127, 127, 0.9);
-            margin-top: 0.5rem;
+            margin-top: 0.3rem;
             text-align: center;
         }
         .rc-stale-badge {
@@ -232,21 +249,38 @@ def inject_base_css() -> None:
             color: #b7791f;
         }
         .rc-header {
-            background: #111827;
+            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
             color: #ffffff;
-            padding: 2rem 2.5rem;
+            padding: 1rem 1.5rem;
             border-radius: 12px;
-            margin-bottom: 2rem;
+            margin-bottom: 0.8rem;
         }
-        .rc-header-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
-        .rc-header-sub { font-size: 1rem; color: rgba(255, 255, 255, 0.7); margin-top: 0.3rem; }
+        .rc-header-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+        .rc-header-sub { font-size: 0.82rem; color: rgba(255, 255, 255, 0.65); margin-top: 0.15rem; }
         div[data-testid="stAppViewContainer"] .block-container,
         div[data-testid="stAppViewContainer"] .stMainBlockContainer {
-            padding-top: 1.5rem;
+            padding-top: 0.8rem;
         }
         div[data-testid="stHorizontalBlock"] {
             align-items: stretch;
         }
+        /* Compact Streamlit's own chrome — dividers, the display-mode control,
+        and the expander — so the three sections have a shot at fitting in one
+        screen alongside the header, instead of Streamlit's default spacing
+        (built for a handful of widgets, not a dense stacked layout) piling up. */
+        div[data-testid="stMainBlockContainer"] > div[data-testid="stVerticalBlock"] {
+            gap: 0.4rem;
+        }
+        hr { margin: 0.2rem 0 !important; }
+        div[data-testid="stExpander"] { margin-top: 0.2rem; }
+        div[data-testid="stExpander"] summary { padding: 0.3rem 0.6rem; min-height: 0; }
+        div[data-testid="stCaptionContainer"] { margin-top: 0.1rem; }
+        div[data-testid="stButtonGroup"] { margin-bottom: 0; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -270,7 +304,7 @@ _ASSET_LABELS: dict[str, str] = {
 }
 
 
-def render_asset_bar(
+def render_asset_section(
     result: AssetClassResult,
     key: str,
     methodology: str,
@@ -280,9 +314,15 @@ def render_asset_bar(
     label = _ASSET_LABELS.get(key, key.replace("_", " ").title())
     theme = _ASSET_THEME.get(key, _DEFAULT_THEME)
 
-    with st.container(border=True):
+    container_key = f"rc-section-{key}"
+    with st.container(key=container_key):
         st.markdown(
-            f'<div class="rc-accent-bar" style="background: {theme.accent};"></div>'
+            f'<style>.st-key-{container_key} {{ '
+            f"border-left: 4px solid {theme.accent}; padding: 0.2rem 0 0.2rem 1.5rem; "
+            "}</style>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
             f'<div class="rc-card-header">'
             f'<div class="rc-icon-badge">{theme.icon_svg}</div>'
             f'<div class="rc-card-title">{label}</div>'
@@ -291,13 +331,15 @@ def render_asset_bar(
         )
         st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
 
-        breakdown = _breakdown_html(result)
-        if breakdown:
-            st.markdown(breakdown, unsafe_allow_html=True)
-
-        log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient)
-        if log_bar:
-            st.markdown(log_bar, unsafe_allow_html=True)
+        left, right = st.columns([2, 3], gap="medium")
+        with left:
+            breakdown = _breakdown_html(result)
+            if breakdown:
+                st.markdown(breakdown, unsafe_allow_html=True)
+        with right:
+            log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient)
+            if log_bar:
+                st.markdown(log_bar, unsafe_allow_html=True)
 
         st.caption(
             f"Tokenized {label}: {_format_usd(result.tokenized_usd)} / "
@@ -309,6 +351,8 @@ def render_asset_bar(
             if result.source_notes:
                 st.divider()
                 st.caption(f"Latest verification: {result.source_notes}")
+
+    st.divider()
 
 
 def _hero_html(
@@ -404,19 +448,34 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
     def position(value: float) -> float:
         return (math.log10(value) - log_min) / span * 100
 
-    last_tick = math.floor(log_max)
-    step = max(1, math.ceil((last_tick - log_min) / _MAX_LOG_TICKS))
-    ticks = list(range(log_min, last_tick, step)) + ([last_tick] if last_tick > log_min else [])
+    # Ticks are round percentages of Total (..., 0.01%, 0.1%, 1%, 10%, 100%)
+    # rather than round dollar amounts, so every card reads on the same,
+    # familiar scale regardless of its total's dollar magnitude. 100% is
+    # Total itself (log_max), so the tick exponent k maps to log10($) as
+    # log_max + (k - 2).
+    k_max = 2
+    k_min = math.ceil(log_min - log_max + 2)
+    step = max(1, math.ceil((k_max - k_min) / _MAX_LOG_TICKS))
+    tick_ks = list(range(k_min, k_max, step)) + [k_max]
     ticks_html = "".join(
-        f'<div class="rc-log-tick" style="left: {(t - log_min) / span * 100}%;"></div>'
+        f'<div class="rc-log-tick" style="left: {(log_max + (k - 2) - log_min) / span * 100}%;"></div>'
         f'<div class="rc-log-tick-label '
-        f'{_tick_align_class((t - log_min) / span)}" '
-        f'style="left: {(t - log_min) / span * 100}%;">{_format_usd(10 ** t)}</div>'
-        for t in ticks
+        f'{_tick_align_class((log_max + (k - 2) - log_min) / span)}" '
+        f'style="left: {(log_max + (k - 2) - log_min) / span * 100}%;">{_format_pct(10 ** k)}</div>'
+        for k in tick_ks
     )
 
     tokenized_pos = position(tokenized)
     total_pos = 100.0
+
+    alt_html = ""
+    if result.alt_total is not None and result.alt_total.value_usd > 0:
+        alt_pos = position(result.alt_total.value_usd)
+        alt_html = (
+            f'<div class="rc-log-dot-sub" style="left: {alt_pos}%;"></div>'
+            f'<div class="rc-log-dot-label-sub" style="left: {alt_pos}%;">'
+            f"Investment stock ({_format_usd(result.alt_total.value_usd)})</div>"
+        )
 
     return (
         '<div class="rc-log-wrap"><div class="rc-log-track">'
@@ -436,6 +495,7 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
         f"Tokenized ({_format_usd(tokenized)})</div>"
         f'<div class="rc-log-dot-label rc-log-dot-label-end" style="left: {total_pos}%;">'
         f"Total ({_format_usd(total)})</div>"
+        f"{alt_html}"
         "</div>"
         f"{ticks_html}"
         '<div class="rc-scale-caption">Log scale</div>'
