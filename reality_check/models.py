@@ -47,6 +47,13 @@ class AssetClassResult:
     pct_tokenized: float
     as_of: datetime
     source_notes: str
+    # Optional narrower denominator (e.g. gold/silver's "identifiable investment
+    # stock" — bars/coins/ETFs — vs. `total`'s all-uses figure including
+    # jewelry/industrial/reserves). None for asset classes where no meaningfully
+    # different denominator exists (e.g. Treasuries — the debt total is already
+    # the relevant liquid figure).
+    alt_total: TotalValue | None = None
+    alt_pct_tokenized: float | None = None
 
     def is_stale(self) -> bool:
         if self.total.quality is DataQuality.FALLBACK:

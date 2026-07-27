@@ -1,5 +1,5 @@
-"""Treasuries asset-class source: BUIDL + USDY tokenized supply vs. total US
-marketable Treasury debt (Debt Held by the Public).
+"""Treasuries asset-class source: BUIDL + USDY + USYC tokenized supply vs. total
+US marketable Treasury debt (Debt Held by the Public).
 
 Unlike gold's above-ground stock (a slowly-changing figure, refreshed periodically
 from World Gold Council data), the Treasury debt total is fetched live from the US
@@ -115,6 +115,13 @@ class TreasurySource:
         basis_note = f"{treasuries.source_citation} ({debt.note})"
         return TotalValue(value_usd=debt.value_usd, basis_note=basis_note, quality=debt.quality)
 
+    def fetch_alt_total(self) -> TotalValue | None:
+        # Unlike gold/silver's total (which mixes illiquid jewelry/reserves in
+        # with investable bars/coins/ETFs), "Debt Held by the Public" is already
+        # the marketable, liquid figure — there's no meaningfully narrower
+        # subset to compare against, so no alternate denominator here.
+        return None
+
     def describe_methodology(self) -> str:
         treasuries = self._config.treasuries
         symbols = " + ".join(token.symbol for token in treasuries.tokens)
@@ -139,15 +146,17 @@ class TreasurySource:
             "issuance, not per-chain balances), confirmed CoinGecko's figure "
             "was right all along for both BUIDL and USDY. Two independent "
             "sources agreeing beats trusting the larger of two numbers.\n\n"
-            f"**Why only {symbols}?** BlackRock's BUIDL and Ondo's USDY are two of "
-            "the largest tokenized US Treasury products. Circle's USYC is currently "
-            "comparable in size or larger but isn't included yet — a candidate for "
-            "a future addition, not excluded on principle. This means the true "
-            "tokenized total is an undercount, never an overcount.\n\n"
-            "**Is summing them correct — any overlap?** No double-counting: BUIDL "
-            "(BlackRock, via Securitize) and USDY (Ondo) are independently managed "
-            "funds holding their own short-term Treasury instruments, not wrapped "
-            "or derivative versions of each other or of a shared pool.\n\n"
+            f"**Why {symbols}?** BlackRock's BUIDL, Ondo's USDY, and Circle's "
+            "USYC (Hashnote's US Yield Coin) are the largest tokenized US "
+            "Treasury products by AUM. Smaller products aren't included yet — "
+            "a candidate for future additions, not excluded on principle. This "
+            "means the true tokenized total is an undercount, never an "
+            "overcount.\n\n"
+            "**Is summing them correct — any overlap?** No double-counting: "
+            "BUIDL (BlackRock, via Securitize), USDY (Ondo), and USYC (Circle/"
+            "Hashnote) are independently managed funds holding their own "
+            "short-term Treasury bills and repo positions, not wrapped or "
+            "derivative versions of each other or of a shared pool.\n\n"
             "**Total Treasury debt** — fetched live from the US Treasury's own "
             "Fiscal Data API (`debt_to_penny`), using 'Debt Held by the Public' "
             "(total public debt minus intragovernmental holdings) as the closest "

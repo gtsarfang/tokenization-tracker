@@ -16,12 +16,14 @@ def refresh_asset_class(
 ) -> AssetClassResult:
     components = source.fetch_tokenized()
     total = source.fetch_total()
+    alt_total = source.fetch_alt_total()
     result = calc.build_asset_class_result(
         source.asset_class,
         components,
         total,
         datetime.now(timezone.utc),
         _build_source_notes(components, total),
+        alt_total=alt_total,
     )
     storage.insert_snapshot(conn, result)
     return result

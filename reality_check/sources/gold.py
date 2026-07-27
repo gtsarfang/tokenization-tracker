@@ -113,6 +113,18 @@ class GoldSource:
         )
         return TotalValue(value_usd=total_usd, basis_note=basis_note, quality=spot.quality)
 
+    def fetch_alt_total(self) -> TotalValue | None:
+        gold = self._config.gold
+        if not gold.investment_tonnes:
+            return None
+        spot = self._market_data[_GOLD_SPOT_PROXY_COINGECKO_ID]
+        total_usd = gold.investment_tonnes * TROY_OZ_PER_TONNE * spot.price_usd
+        basis_note = (
+            f"{gold.investment_tonnes:,.0f} t bars/coins/ETFs only "
+            f"({gold.investment_source_citation}) @ ${spot.price_usd:,.2f}/oz"
+        )
+        return TotalValue(value_usd=total_usd, basis_note=basis_note, quality=spot.quality)
+
     def describe_methodology(self) -> str:
         gold = self._config.gold
         onchain_symbols = " + ".join(t.symbol for t in gold.tokens if t.read_onchain)
@@ -152,6 +164,12 @@ class GoldSource:
             f"**Total gold value** = total above-ground tonnes × "
             f"{TROY_OZ_PER_TONNE:,.4f} troy oz/tonne × spot price, where total "
             f"tonnes ({gold.total_tonnes:,.0f} t) is from: {gold.source_citation}.\n\n"
+            "**Alternate denominator (shown as a secondary figure)** — the "
+            "primary total above includes jewelry, central-bank reserves, and "
+            "industrial stock, none of which tokenized gold is realistically "
+            "competing with. A narrower comparison uses only bars, coins, and "
+            f"gold-backed ETFs ({gold.investment_tonnes:,.0f} t, "
+            f"{gold.investment_source_citation}) — the actual investable pool.\n\n"
             "Any value that falls back to a manually configured constant (RPC or "
             "price API failure) is marked stale — see the badge above if so.\n\n"
             f"**Verification** — {onchain_symbols} are each cross-checked "

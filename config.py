@@ -56,6 +56,11 @@ class GoldConfig:
     total_tonnes: float
     source_citation: str
     tokens: tuple[TokenConfig, ...]
+    # Narrower denominator: bars, coins, and gold-backed ETFs only — the actual
+    # "investable" pool tokenized gold competes with, excluding jewelry,
+    # central-bank reserves, and industrial stock (which `total_tonnes` includes).
+    investment_tonnes: float = 0.0
+    investment_source_citation: str = ""
 
 
 @dataclass(frozen=True)
@@ -63,6 +68,11 @@ class SilverConfig:
     total_tonnes: float
     source_citation: str
     tokens: tuple[TokenConfig, ...]
+    # Same narrower "investment stock" denominator as gold, using the Silver
+    # Institute's "identifiable above-ground stocks" figure this app's own
+    # `total_tonnes` deliberately did NOT use (see source_citation above).
+    investment_tonnes: float = 0.0
+    investment_source_citation: str = ""
 
 
 @dataclass(frozen=True)
@@ -72,7 +82,7 @@ class TreasuryConfig:
     # changes daily and a static constant would drift too fast to be meaningful.
     fallback_total_debt_usd: float
     source_citation: str
-    tokens: tuple[TokenConfig, TokenConfig]
+    tokens: tuple[TokenConfig, ...]
 
 
 @dataclass(frozen=True)
@@ -163,6 +173,14 @@ _GOLD_CONFIG = GoldConfig(
     # PAXG+XAUT combined) — the same "worth it if not tiny" bar Silver's SLVON
     # was added under.
     tokens=(_PAXG, _XAUT, _KAU),
+    # World Gold Council, Gold Demand Trends Full Year 2024 — bars, coins, and
+    # gold-backed ETFs, year-end 2024 estimate (48,634 tonnes). Retrieved
+    # 2026-07-26. https://www.gold.org/goldhub/research/gold-demand-trends/gold-demand-trends-full-year-2024
+    investment_tonnes=48_634.0,
+    investment_source_citation=(
+        "World Gold Council, Gold Demand Trends FY2024 — bars, coins & "
+        "gold-backed ETFs (YE2024), retrieved 2026-07-26"
+    ),
 )
 
 
@@ -224,14 +242,22 @@ _SILVER_CONFIG = SilverConfig(
         "comparability with gold's comprehensive WGC total"
     ),
     tokens=(_KAG, _SLVON),
+    # Silver Institute, "identifiable above-ground stocks" (investment bars,
+    # coins, and ETF holdings only) — ~79,000 tonnes, retrieved 2026-07-26.
+    # This is the narrower figure `source_citation` above deliberately avoided
+    # using as the primary denominator; used here as the alternate one instead.
+    investment_tonnes=79_000.0,
+    investment_source_citation=(
+        "Silver Institute, 'identifiable above-ground stocks' (investment "
+        "bars/coins/ETFs only), retrieved 2026-07-26"
+    ),
 )
 
 
-# --- BUIDL / USDY contract facts (not user-tunable via env) ------------------------
-# BUIDL and USDY are, as of 2026-07-26, two of the largest tokenized US Treasury
-# products (BlackRock's BUIDL and Ondo's USDY). Circle's USYC is currently comparable
-# in size or larger but isn't included yet — a candidate for a future addition, not
-# because it's excluded on principle.
+# --- BUIDL / USDY / USYC contract facts (not user-tunable via env) ----------------
+# BlackRock's BUIDL and Ondo's USDY were the two largest tokenized US Treasury
+# products; Circle's USYC (Hashnote's US Yield Coin) is now comparable in size
+# and included alongside them — see _TREASURY_CONFIG below for sizing.
 
 _BUIDL = TokenConfig(
     symbol="BUIDL",
@@ -271,6 +297,28 @@ _USDY = TokenConfig(
     defillama_slug="ondo-yield-assets",
 )
 
+_USYC = TokenConfig(
+    symbol="USYC",
+    issuer="Circle",
+    backing=(
+        "Shares in Hashnote's International Short Duration Yield Fund, holding "
+        "short-term US Treasury bills and overnight reverse repurchase "
+        "agreements collateralized by Treasuries."
+    ),
+    contract_address="0x136471a34f6ef19fE571EFFC1CA711fdb8E49f2b",
+    expected_decimals=6,
+    coingecko_id="hashnote-usyc",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/hashnote-usyc
+    fallback_supply=2_655_466_907.77,
+    fallback_price_usd=1.13,
+    defillama_slug="circle-usyc",
+    # Natively minted independently across Ethereum, Sui, and Canton Network —
+    # same no-single-canonical-chain issue as BUIDL/USDY, so this uses
+    # CoinGecko's aggregate total_supply rather than an on-chain read.
+    read_onchain=False,
+)
+
 _TREASURY_CONFIG = TreasuryConfig(
     # US Treasury Fiscal Data, "Debt Held by the Public" (Debt to the Penny),
     # 2026-07-23: $31.91T (latest available as of 2026-07-26). Used only if the
@@ -278,7 +326,11 @@ _TREASURY_CONFIG = TreasuryConfig(
     # https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/
     fallback_total_debt_usd=31_911_919_221_141.67,
     source_citation="US Treasury Fiscal Data API, 'Debt Held by the Public' (Debt to the Penny)",
-    tokens=(_BUIDL, _USDY),
+    # BlackRock's BUIDL and Ondo's USDY were the two largest tokenized US
+    # Treasury products; Circle's USYC (Hashnote's US Yield Coin, ~$3.0B AUM as
+    # of 2026-07-26, per CoinGecko and DefiLlama agreeing closely) is now
+    # comparable in size to BUIDL and is added alongside them.
+    tokens=(_BUIDL, _USDY, _USYC),
 )
 
 

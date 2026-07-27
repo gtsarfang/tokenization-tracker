@@ -13,7 +13,7 @@ inferred from a dot's position.
 
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
 **silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
-(BUIDL + USDY vs. total US Treasury debt held by the public). Cards render in a
+(BUIDL + USDY + USYC vs. total US Treasury debt held by the public). Cards render in a
 3-per-row grid (wide page layout) that keeps filling out as more asset classes
 are added.
 
@@ -82,6 +82,17 @@ This figure changes slowly, so it's a periodically-updated constant rather than
 something scraped live. Update it in `config.py` (with a fresh citation/date) as new
 Goldhub estimates are published.
 
+**"vs. investment stock only" (secondary figure)** — the primary total above
+includes jewelry, central-bank reserves, and industrial stock, none of which
+tokenized gold is realistically competing with. The app also shows a narrower
+comparison using only bars, coins, and gold-backed ETFs:
+
+> World Gold Council, Gold Demand Trends Full Year 2024 — bars, coins, and
+> gold-backed ETFs (48,634 t, year-end 2024). Retrieved 2026-07-26.
+
+This is the actual investable pool tokenized gold competes with, shown
+alongside (not instead of) the primary above-ground-stock percentage.
+
 ### Silver
 
 **Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
@@ -122,11 +133,18 @@ comparing this app's silver number against one using the narrower Silver Institu
 figure will see a ~20x difference for reasons that have nothing to do with data
 quality.
 
+**"vs. investment stock only" (secondary figure)** — rather than picking one of
+the two silver totals and hiding the other, the app shows the narrower Silver
+Institute investment-only figure (bars/coins, ~79,000 t) as a secondary
+comparison alongside the primary CPM Group total — the same "investable pool"
+framing used for gold's alternate denominator above.
+
 ### US Treasuries
 
-**Tokenized value** — BUIDL (BlackRock USD Institutional Digital Liquidity Fund)
-and USDY (Ondo US Dollar Yield) are natively minted independently on multiple
-chains (BUIDL on 8, USDY on 12), each with its own separate supply — there's no
+**Tokenized value** — BUIDL (BlackRock USD Institutional Digital Liquidity Fund),
+USDY (Ondo US Dollar Yield), and USYC (Circle/Hashnote US Yield Coin) are
+natively minted independently on multiple chains (BUIDL on 8, USDY on 12, USYC
+on 3 — Ethereum, Sui, Canton), each with its own separate supply — there's no
 single canonical chain whose `totalSupply()` represents the global total.
 
 This went through three iterations, not one — including a wrong turn that got
@@ -158,12 +176,13 @@ resolve which one was right. (Gold's PAXG/XAUT don't have this problem — on-ch
 reads, CoinGecko, and DefiLlama all agree within 0.5%, confirming they really are
 single-canonical-chain tokens with no bridging ambiguity.)
 
-BUIDL and USDY are two of the largest tokenized US Treasury products (as of
-2026-07-26). Circle's USYC is currently comparable in size or larger but isn't
-included yet — a candidate for a future addition, not excluded on principle, so
-again this is an undercount, never an overcount. No double-counting: both are
-independently managed funds holding their own short-term Treasury instruments, not
-wrapped/derivative versions of each other.
+BUIDL, USDY, and USYC are the largest tokenized US Treasury products (as of
+2026-07-26, USYC ~$3.0B AUM per CoinGecko and DefiLlama agreeing closely).
+Smaller products aren't included yet — a candidate for future additions, not
+excluded on principle, so this remains an undercount, never an overcount. No
+double-counting: all three are independently managed funds holding their own
+short-term Treasury bills and repo positions, not wrapped/derivative versions
+of each other.
 
 **Total Treasury debt** — fetched **live** on every refresh from the US Treasury's
 own [Fiscal Data API](https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/)
@@ -294,3 +313,26 @@ To add a new asset class (e.g. tokenized real estate):
 No changes needed to `calc.py` or `storage.py` — they only depend on the
 `AssetClassResult`/`ComponentValue`/`TotalValue` models, not on how a source produces
 them.
+
+## Roadmap / known gaps
+
+- **On-chart investment-stock marker** — gold/silver show a "vs. investment stock
+  only" figure as a secondary line under the headline stat (`viz._hero_html`), but
+  an earlier attempt to also plot it as a dot on the log-scale bar kept hitting CSS
+  positioning bugs (label overflow past the card edge, dot misaligned from the
+  track) and was pulled for time. The underlying data (`AssetClassResult.alt_total`
+  / `alt_pct_tokenized`) is already there — a chart marker is a viz-only addition,
+  no source/calc changes needed.
+- **US private credit** — removed earlier for a category mismatch (HELOC vs.
+  institutional business lending denominator); revisit with a properly matched
+  denominator (e.g. total US home equity/HELOC lending) or drop it for a different
+  private-credit product.
+- **More Treasury products** — USYC is in; Circle also has other products, and
+  smaller tokenized Treasury funds exist that aren't included yet (undercount by
+  design, not urgent).
+- **Tokenized real estate / money market funds** — candidate next asset classes;
+  money market funds (e.g. Franklin Templeton's BENJI) have a cleaner denominator
+  (ICI-published US MMF AUM) than real estate's much murkier total-market-value
+  figure.
+- **% tokenized over time** — snapshots are already stored in SQLite on every
+  live refresh (see "Running locally" above); nothing charts that history yet.

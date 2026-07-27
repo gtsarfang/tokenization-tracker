@@ -36,9 +36,13 @@ def build_asset_class_result(
     total: TotalValue,
     as_of: datetime,
     source_notes: str,
+    alt_total: TotalValue | None = None,
 ) -> AssetClassResult:
     tokenized_usd = sum_component_values(components)
     pct_tokenized = compute_pct_tokenized(tokenized_usd, total.value_usd)
+    alt_pct_tokenized = (
+        compute_pct_tokenized(tokenized_usd, alt_total.value_usd) if alt_total else None
+    )
     return AssetClassResult(
         asset_class=asset_class,
         tokenized_usd=tokenized_usd,
@@ -47,4 +51,6 @@ def build_asset_class_result(
         pct_tokenized=pct_tokenized,
         as_of=as_of,
         source_notes=source_notes,
+        alt_total=alt_total,
+        alt_pct_tokenized=alt_pct_tokenized,
     )

@@ -25,6 +25,13 @@ class AssetClassSource(Protocol):
         back to configured manual values and marks the result as stale."""
         ...
 
+    def fetch_alt_total(self) -> TotalValue | None:
+        """Optional narrower denominator for comparison (e.g. gold/silver's
+        identifiable investment stock vs. `fetch_total`'s all-uses figure).
+        Return None if no meaningfully different denominator exists for this
+        asset class. Must never raise."""
+        ...
+
     def describe_methodology(self) -> str:
         """Static markdown explaining how tokenized/total are computed for this
         asset class, with source citations. Never raises; no network/IO."""
