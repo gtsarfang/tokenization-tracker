@@ -342,7 +342,7 @@ def render_asset_section(
     result: AssetClassResult,
     key: str,
     methodology: str,
-    quantity: tuple[str, str] | None = None,
+    quantity: tuple[str, str, str | None] | None = None,
     mode: str = "%",
     shared_log_span: float | None = None,
 ) -> None:
@@ -395,15 +395,16 @@ def _hero_html(
     label: str,
     accent: str,
     mode: str,
-    quantity: tuple[str, str] | None,
+    quantity: tuple[str, str, str | None] | None,
 ) -> str:
     pct = _format_pct(result.pct_tokenized)
+    alt_qty = quantity[2] if quantity else None
     # "unit" means "this asset class's natural physical unit" (troy oz for
     # gold/silver) where one exists. Treasuries has none — it's natively
     # dollar-denominated — so "unit" there just means $, not a silent fall
     # back to % (which "unit" wouldn't suggest to anyone).
     if mode == "unit" and quantity:
-        tokenized_qty, total_qty = quantity
+        tokenized_qty, total_qty, _ = quantity
         headline = tokenized_qty
         sub = f"tokenized of {total_qty} total {label.lower()} ({pct})"
     elif mode == "$" or mode == "unit":
@@ -417,12 +418,11 @@ def _hero_html(
         )
     alt_line = ""
     if result.alt_total is not None and result.alt_pct_tokenized is not None:
-        # Matches whatever unit the headline itself is in — no stored physical
-        # quantity for the alt (investment-stock) denominator, only its $
-        # value, so "unit" mode shows $ here same as "$" mode rather than
-        # silently staying in %.
         if mode == "%":
             alt_value = _format_pct(result.alt_pct_tokenized)
+        elif mode == "unit" and alt_qty:
+            tokenized_qty = quantity[0] if quantity else ""
+            alt_value = f"{tokenized_qty} of {alt_qty}"
         else:
             alt_value = (
                 f"{_format_usd(result.tokenized_usd)} of "

@@ -197,5 +197,5 @@ class TreasurySource:
             "what actually settled which source to trust."
         )
 
-    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
+    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
         return None  # no natural physical unit for Treasuries

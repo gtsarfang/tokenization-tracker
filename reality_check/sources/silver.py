@@ -129,11 +129,15 @@ class SilverSource:
             "~$191M market cap) — not wired in as a live check, but reassuring."
         )
 
-    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
+    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
         # Both KAG (direct redemption) and SLVON (an ETF share designed to track
         # ~1 oz of silver each) are close enough to 1:1 with a troy oz that the
         # token quantities already fetched double as tokenized weight — no extra
         # fetch. Same approximation level as gold's PAXG/XAUT already use.
         tokenized_oz = sum(c.quantity for c in result.components)
         total_oz = self._config.silver.total_tonnes * TROY_OZ_PER_TONNE
-        return (format_tonnes(tokenized_oz), format_tonnes(total_oz))
+        silver = self._config.silver
+        alt_qty = (
+            format_tonnes(silver.investment_tonnes * TROY_OZ_PER_TONNE) if silver.investment_tonnes else None
+        )
+        return (format_tonnes(tokenized_oz), format_tonnes(total_oz), alt_qty)

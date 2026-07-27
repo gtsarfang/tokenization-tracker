@@ -37,8 +37,9 @@ class AssetClassSource(Protocol):
         asset class, with source citations. Never raises; no network/IO."""
         ...
 
-    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
-        """Optional physical-unit readout as (tokenized, total) display strings,
-        e.g. ("55 t", "216,265 t") for a commodity measured by weight. Return None
-        if this asset class has no natural physical unit (e.g. Treasuries)."""
+    def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
+        """Optional physical-unit readout as (tokenized, total, alt_total) display
+        strings, e.g. ("55 t", "216,265 t", "48,634 t") for a commodity measured by
+        weight — alt_total is None if `fetch_alt_total` returns None. Return None
+        entirely if this asset class has no natural physical unit (e.g. Treasuries)."""
         ...
