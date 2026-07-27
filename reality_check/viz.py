@@ -264,7 +264,11 @@ def inject_base_css() -> None:
         .rc-header-sub { font-size: 0.82rem; color: rgba(255, 255, 255, 0.65); margin-top: 0.15rem; }
         div[data-testid="stAppViewContainer"] .block-container,
         div[data-testid="stAppViewContainer"] .stMainBlockContainer {
-            padding-top: 0.8rem;
+            /* Tighter than Streamlit's default, but not so tight that our
+            header clips under Streamlit Community Cloud's own toolbar
+            (the Share/star/GitHub icon row it injects above the app on
+            hosted deployments only — not present when running locally). */
+            padding-top: 3rem;
         }
         div[data-testid="stHorizontalBlock"] {
             align-items: stretch;
