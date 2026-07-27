@@ -150,28 +150,65 @@ def inject_base_css() -> None:
             margin-top: 0.2rem;
             line-height: 1.4;
         }
-        .rc-log-wrap { position: relative; margin: 2rem 0.25rem 2.6rem 0.25rem; }
+        .rc-linear-wrap { position: relative; margin: 1.2rem 0.25rem 2rem 0.25rem; }
+        .rc-linear-track {
+            position: relative;
+            height: 6px;
+            background: rgba(127, 127, 127, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .rc-linear-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            border-radius: 3px;
+        }
+        .rc-scale-caption {
+            font-size: 0.68rem;
+            color: rgba(127, 127, 127, 0.65);
+            margin-top: 1.6rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .rc-log-wrap { position: relative; margin: 2rem 0.25rem 0.4rem 0.25rem; }
         .rc-log-track {
             position: relative;
             height: 6px;
-            background: rgba(127, 127, 127, 0.2);
             border-radius: 3px;
+            overflow: hidden;
         }
-        .rc-log-tick {
+        .rc-log-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+        }
+        .rc-log-remainder {
             position: absolute;
             top: 0;
-            width: 1px;
-            height: 6px;
-            background: rgba(127, 127, 127, 0.45);
+            height: 100%;
+            background: rgba(127, 127, 127, 0.15);
         }
-        .rc-log-tick-label {
+        .rc-log-tick, .rc-linear-tick {
+            position: absolute;
+            top: -3px;
+            width: 1px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.35);
+        }
+        .rc-log-tick-label, .rc-linear-tick-label {
             position: absolute;
             top: 12px;
             transform: translateX(-50%);
             font-size: 0.65rem;
-            color: rgba(127, 127, 127, 0.75);
+            color: rgba(127, 127, 127, 0.8);
             white-space: nowrap;
         }
+        .rc-tick-label-start { transform: translateX(0); }
+        .rc-tick-label-end { transform: translateX(-100%); }
         .rc-log-dot {
             position: absolute;
             top: 50%;
@@ -179,6 +216,7 @@ def inject_base_css() -> None:
             height: 14px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
+            border: 2px solid #ffffff;
         }
         .rc-log-dot-label {
             position: absolute;
@@ -191,10 +229,11 @@ def inject_base_css() -> None:
         .rc-log-dot-label-end {
             transform: translateX(-100%);
         }
-        .rc-log-caption {
-            font-size: 0.72rem;
-            color: rgba(127, 127, 127, 0.75);
-            margin-top: 1.7rem;
+        .rc-multiplier-callout {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: rgba(127, 127, 127, 0.9);
+            margin-top: 0.5rem;
             text-align: center;
         }
         .rc-stale-badge {
@@ -258,8 +297,10 @@ def render_asset_bar(
         if breakdown:
             st.markdown(breakdown, unsafe_allow_html=True)
 
+        linear_bar = _linear_bar_html(result, theme.accent)
         log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient)
-        if log_bar:
+        if linear_bar and log_bar:
+            st.markdown(linear_bar, unsafe_allow_html=True)
             st.markdown(log_bar, unsafe_allow_html=True)
 
         st.caption(
@@ -326,6 +367,47 @@ def _breakdown_html(result: AssetClassResult) -> str | None:
     return f'<div class="rc-breakdown">{rows}</div>'
 
 
+def _tick_align_class(fraction: float) -> str:
+    if fraction <= 0.0:
+        return "rc-tick-label-start"
+    if fraction >= 1.0:
+        return "rc-tick-label-end"
+    return ""
+
+
+def _linear_bar_html(result: AssetClassResult, accent: str) -> str | None:
+    pct = result.pct_tokenized
+    total = result.total.value_usd
+    if pct <= 0 or total <= 0:
+        return None
+    # A rendering floor so a sub-pixel sliver still paints a visible line — this
+    # is the whole point of showing this bar: it's supposed to look almost empty.
+    fill_width = f"max(2px, {pct}%)"
+    tick_fractions = [0.0, 0.5, 1.0]
+    ticks_html = "".join(
+        f'<div class="rc-linear-tick" style="left: {frac * 100}%;"></div>'
+        f'<div class="rc-linear-tick-label {_tick_align_class(frac)}" style="left: {frac * 100}%;">'
+        f"{_format_usd(total * frac)}</div>"
+        for frac in tick_fractions
+    )
+    return (
+        '<div class="rc-linear-wrap"><div class="rc-linear-track">'
+        f'<div class="rc-linear-fill" style="width: {fill_width}; background: {accent};"></div>'
+        "</div>"
+        f"{ticks_html}"
+        '<div class="rc-scale-caption">Linear scale</div>'
+        "</div>"
+    )
+
+
+def _format_multiplier(ratio: float) -> str:
+    if ratio >= 100:
+        return f"~{ratio:,.0f}x"
+    if ratio >= 10:
+        return f"~{ratio:.0f}x"
+    return f"~{ratio:.1f}x"
+
+
 def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: str) -> str | None:
     tokenized = result.tokenized_usd
     total = result.total.value_usd
@@ -346,11 +428,11 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
     last_tick = math.floor(log_max)
     step = max(1, math.ceil((last_tick - log_min) / _MAX_LOG_TICKS))
     ticks = list(range(log_min, last_tick, step)) + ([last_tick] if last_tick > log_min else [])
-
     ticks_html = "".join(
         f'<div class="rc-log-tick" style="left: {(t - log_min) / span * 100}%;"></div>'
-        f'<div class="rc-log-tick-label" style="left: {(t - log_min) / span * 100}%;">'
-        f"{_format_usd(10 ** t)}</div>"
+        f'<div class="rc-log-tick-label '
+        f'{_tick_align_class((t - log_min) / span)}" '
+        f'style="left: {(t - log_min) / span * 100}%;">{_format_usd(10 ** t)}</div>'
         for t in ticks
     )
 
@@ -358,9 +440,10 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
     total_pos = 100.0
 
     return (
-        '<div class="rc-log-wrap"><div class="rc-log-track" '
-        f'style="background: {track_gradient};">'
-        f"{ticks_html}"
+        '<div class="rc-log-wrap"><div class="rc-log-track">'
+        f'<div class="rc-log-fill" style="width: {tokenized_pos}%; background: {track_gradient};"></div>'
+        f'<div class="rc-log-remainder" style="left: {tokenized_pos}%; '
+        f'width: {100 - tokenized_pos}%;"></div>'
         f'<div class="rc-log-dot" style="left: {tokenized_pos}%; background: {accent};"></div>'
         f'<div class="rc-log-dot" style="left: {total_pos}%; background: rgba(127, 127, 127, 0.7);"></div>'
         f'<div class="rc-log-dot-label" style="left: {tokenized_pos}%; color: {accent};">'
@@ -368,7 +451,13 @@ def _log_scale_bar_html(result: AssetClassResult, accent: str, track_gradient: s
         f'<div class="rc-log-dot-label rc-log-dot-label-end" style="left: {total_pos}%;">'
         f"Total ({_format_usd(total)})</div>"
         "</div>"
-        '<div class="rc-log-caption">log scale — linear would make this invisible</div>'
+        # Ticks are siblings of the track, not children — the track clips
+        # overflow (for the rounded-corner fill), which would cut off tick
+        # marks meant to stick out slightly above/below it.
+        f"{ticks_html}"
+        '<div class="rc-scale-caption">Log scale</div>'
+        f'<div class="rc-multiplier-callout">Total is {_format_multiplier(total / tokenized)} '
+        "larger than what's tokenized</div>"
         "</div>"
     )
 
