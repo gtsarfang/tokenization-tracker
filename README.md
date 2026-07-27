@@ -22,7 +22,7 @@ asset classes are added.
 
 ### Gold
 
-**Tokenized supply** — read live from Ethereum via `web3.py`:
+**Tokenized supply** — read live from Ethereum via `web3.py` for PAXG and XAUT:
 - [PAXG](https://etherscan.io/token/0x45804880de22913dafe09f4980848ece6ecbaf78) (Paxos
   Gold), contract `0x45804880De22913dAFE09f4980848ECE6EcbAf78`, 18 decimals
 - [XAUT](https://etherscan.io/token/0x68749665ff8d2d112fa859aa293f07a622782f38) (Tether
@@ -31,19 +31,28 @@ asset classes are added.
 `totalSupply()` and `decimals()` are called directly on each contract via a free
 public RPC (`https://ethereum.publicnode.com` by default).
 
-PAXG and XAUT are the two largest gold-backed tokens by market cap by a wide
-margin. Smaller ones exist (Kinesis KAU, Comtech Gold, etc.) but are excluded as
-negligible — so the tokenized total here is a slight *undercount*, never an
-overcount. Summing PAXG + XAUT doesn't double-count: they're backed by separate,
-independently audited gold reserves, not shared collateral. Only each token's
+- [KAU](https://www.coingecko.com/en/coins/kinesis-gold) (Kinesis Gold) is
+  different: it's natively minted on Kinesis's own ledger (a Stellar fork), and
+  an on-chain read of its Ethereum contract only captures a "wrapped" fraction
+  of the real supply (~1.64M of ~2.39M tokens, verified 2026-07-26) — the same
+  issue as Silver's KAG, so KAU uses CoinGecko's aggregate `total_supply`
+  instead, like Silver and Treasuries do.
+
+PAXG and XAUT are the two largest gold-backed tokens by a wide margin. KAU
+(~$315M) is a clear, worthwhile third (~6% on top of PAXG+XAUT combined) — the
+same "worth it if not tiny" bar Silver's SLVON was added under. Smaller
+gold-backed tokens (e.g. Comtech Gold) are still excluded — so the tokenized
+total here is a slight *undercount*, never an overcount. Summing all three
+doesn't double-count: they're backed by separate, independently audited gold
+reserves, not shared collateral. For PAXG/XAUT specifically, only each token's
 canonical Ethereum mainnet contract is read — if either is bridged/wrapped onto
 another chain, that's done by locking the mainnet tokens (which stay counted in
 mainnet `totalSupply`) and minting a claim elsewhere, not additional gold, so
 bridging doesn't introduce double-counting either.
 
-**Token prices** — fetched from the [CoinGecko free API](https://www.coingecko.com/en/api)
-`/simple/price` endpoint (no API key required), using CoinGecko ids `pax-gold` and
-`tether-gold`.
+**Token prices** — fetched from the [CoinGecko free API](https://www.coingecko.com/en/api):
+`/simple/price` for PAXG/XAUT (ids `pax-gold`, `tether-gold`); `/coins/markets`
+for KAU (id `kinesis-gold`, which also supplies its aggregate supply figure).
 
 **Gold spot price** — derived from PAXG's CoinGecko market price, not a separate
 metals-price API. PAXG is redeemable 1:1 for a troy ounce of LBMA-good-delivery gold,
@@ -202,19 +211,20 @@ Three tiers, depending on what's available for a given token:
    (rwa.xyz, checked manually) settled it: CoinGecko was right, DefiLlama was
    double-counting bridged supply. DefiLlama is still shown in the notes for
    transparency, just not trusted as the tiebreaker anymore.
-3. **Same-source consistency check** (Silver, Private Credit) — `total_supply ×
-   price` is checked against CoinGecko's own reported `market_cap` from the same
-   API response. This can catch an internally inconsistent response (e.g. a stale
-   field) but not a wrong source, since there's no free second provider tracking
-   these specific tokens under a comparable metric (DefiLlama's "Kinesis Labs"
-   listing is an unrelated protocol, not Kinesis Money/KAG; its Figure-related
-   listings track different products, not the FIGR_HELOC certificate token).
-   [rwa.xyz](https://rwa.xyz) itself doesn't help for Silver either (KAG's data
-   is locked behind their paid tier). For Private Credit, rwa.xyz *does* show
-   FIGR_HELOC ($20.50B) closely matching CoinGecko ($21.19B) — a manual
-   CoinMarketCap spot-check that showed a ~27% gap earlier now looks like CMC
-   was the outlier, not CoinGecko, though this isn't wired into the app as a
-   live check either way.
+3. **Same-source consistency check** (Gold's KAU, Silver, Private Credit) —
+   `total_supply × price` is checked against CoinGecko's own reported
+   `market_cap` from the same API response. This can catch an internally
+   inconsistent response (e.g. a stale field) but not a wrong source, since
+   there's no free second provider tracking these specific tokens under a
+   comparable metric (DefiLlama's "Kinesis Labs" listing is an unrelated
+   protocol, not Kinesis Money's KAU/KAG; its Figure-related listings track
+   different products, not the FIGR_HELOC certificate token; SLVON has no
+   DefiLlama match either). [rwa.xyz](https://rwa.xyz) itself doesn't help for
+   Silver/Gold's KAU (Kinesis data is locked behind their paid tier). For
+   Private Credit, rwa.xyz *does* show FIGR_HELOC ($20.50B) closely matching
+   CoinGecko ($21.19B) — a manual CoinMarketCap spot-check that showed a ~27%
+   gap earlier now looks like CMC was the outlier, not CoinGecko, though this
+   isn't wired into the app as a live check either way.
 
 Results are shown under each asset's "How is this calculated?" expander as "Latest
 verification". This is what caught the Treasuries multi-chain undercount, then

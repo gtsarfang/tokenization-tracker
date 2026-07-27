@@ -3,14 +3,16 @@ gold value. Reference implementation of AssetClassSource for future asset classe
 
 from __future__ import annotations
 
-from config import TROY_OZ_PER_TONNE, AppConfig, format_tonnes
+from config import TROY_OZ_PER_TONNE, AppConfig, TokenConfig, format_tonnes
 from reality_check.models import AssetClassResult, ComponentValue, TotalValue
 from reality_check.sources.defillama import defillama_cross_check_note, fetch_protocol_tvl
 from reality_check.sources.onchain import get_web3, read_erc20_total_supply
 from reality_check.sources.prices import (
     PriceReading,
+    consistency_note,
     cross_check_note,
     fetch_cross_check_supply,
+    fetch_market_data,
     fetch_simple_prices,
 )
 
@@ -27,16 +29,27 @@ class GoldSource:
         self._price_cache: dict[str, PriceReading] | None = None
 
     def fetch_tokenized(self) -> tuple[ComponentValue, ...]:
+        onchain_tokens = [t for t in self._config.gold.tokens if t.read_onchain]
+        aggregate_tokens = [t for t in self._config.gold.tokens if not t.read_onchain]
+        components = [
+            *self._fetch_onchain_components(onchain_tokens),
+            *self._fetch_aggregate_components(aggregate_tokens),
+        ]
+        return tuple(components)
+
+    def _fetch_onchain_components(self, tokens: list[TokenConfig]) -> list[ComponentValue]:
+        if not tokens:
+            return []
         w3 = get_web3(self._config.rpc_url, self._config.rpc_timeout_seconds)
         prices = self._get_prices()
         cross_checks = fetch_cross_check_supply(
             self._config.coingecko_base_url,
-            [token.coingecko_id for token in self._config.gold.tokens],
+            [token.coingecko_id for token in tokens],
             self._config.coingecko_timeout_seconds,
         )
 
         components = []
-        for token in self._config.gold.tokens:
+        for token in tokens:
             supply = read_erc20_total_supply(
                 w3,
                 token.contract_address,
@@ -67,7 +80,39 @@ class GoldSource:
                     backing=token.backing,
                 )
             )
-        return tuple(components)
+        return components
+
+    def _fetch_aggregate_components(self, tokens: list[TokenConfig]) -> list[ComponentValue]:
+        # For tokens where the Ethereum contract doesn't hold the full supply
+        # (e.g. natively minted on another ledger) — same CoinGecko-aggregate
+        # pattern as silver.py/treasuries.py, not an on-chain read.
+        if not tokens:
+            return []
+        market = fetch_market_data(
+            self._config.coingecko_base_url,
+            [token.coingecko_id for token in tokens],
+            {t.coingecko_id: t.fallback_price_usd for t in tokens},
+            {t.coingecko_id: t.fallback_supply for t in tokens},
+            self._config.coingecko_timeout_seconds,
+        )
+        components = []
+        for token in tokens:
+            reading = market[token.coingecko_id]
+            check = consistency_note(reading)
+            components.append(
+                ComponentValue(
+                    symbol=token.symbol,
+                    quantity=reading.total_supply,
+                    unit_price_usd=reading.price_usd,
+                    value_usd=reading.total_supply * reading.price_usd,
+                    supply_quality=reading.quality,
+                    price_quality=reading.quality,
+                    note="; ".join(n for n in (reading.note, check) if n),
+                    display_name=f"{token.issuer} {token.symbol}",
+                    backing=token.backing,
+                )
+            )
+        return components
 
     def fetch_total(self) -> TotalValue:
         gold = self._config.gold
@@ -81,25 +126,37 @@ class GoldSource:
 
     def describe_methodology(self) -> str:
         gold = self._config.gold
+        onchain_symbols = " + ".join(t.symbol for t in gold.tokens if t.read_onchain)
+        aggregate_symbols = " + ".join(t.symbol for t in gold.tokens if not t.read_onchain)
         symbols = " + ".join(token.symbol for token in gold.tokens)
         return (
             f"**Tokenized supply** — `totalSupply()` read directly from the "
-            f"{symbols} ERC-20 contracts on their canonical Ethereum mainnet "
-            f"addresses, via web3.py.\n\n"
-            f"**Why only {symbols}?** They're the two largest gold-backed tokens "
-            "by market cap by a wide margin. Smaller gold-backed tokens exist "
-            "(e.g. Kinesis KAU, Comtech Gold) but are excluded here as negligible "
-            "in size — this means the true tokenized total is a small undercount, "
-            "never an overcount.\n\n"
+            f"{onchain_symbols} ERC-20 contracts on their canonical Ethereum "
+            f"mainnet addresses, via web3.py. {aggregate_symbols} is different: "
+            "it's natively minted on Kinesis's own ledger (a Stellar fork), and "
+            "an on-chain read of its Ethereum contract only captures a "
+            "'wrapped' fraction of the real supply (~1.64M of ~2.39M tokens, "
+            "verified 2026-07-26) — same underlying issue as Silver's KAG, so "
+            f"{aggregate_symbols} uses CoinGecko's aggregate `total_supply` "
+            "instead, like Silver and Treasuries do.\n\n"
+            f"**Why {symbols}?** PAXG and XAUT are the two largest gold-backed "
+            f"tokens by a wide margin. {aggregate_symbols} (Kinesis Gold, ~$315M) "
+            "is a clear, worthwhile third (~6% on top of PAXG+XAUT combined) — "
+            "the same 'worth it if not tiny' bar Silver's SLVON was added under. "
+            "Smaller gold-backed tokens (e.g. Comtech Gold) are still excluded — "
+            "this means the true tokenized total is a small undercount, never an "
+            "overcount.\n\n"
             "**Is summing them correct — any overlap?** No double-counting: PAXG "
-            "(Paxos) and XAUT (Tether Gold) are backed by separate, independently "
-            "audited gold reserves, not shared collateral. We only read each "
-            "token's canonical mainnet contract; if either is bridged/wrapped onto "
+            "(Paxos), XAUT (Tether Gold), and KAU (Kinesis) are backed by "
+            "separate, independently audited gold reserves, not shared "
+            "collateral. For PAXG/XAUT specifically, we only read each token's "
+            "canonical mainnet contract; if either is bridged/wrapped onto "
             "another chain, that's done by locking the mainnet tokens (which stay "
             "counted in mainnet `totalSupply`) and minting a claim elsewhere — not "
             "additional gold — so bridging doesn't cause double-counting either.\n\n"
             "**Prices** — fetched live from the CoinGecko free API "
-            "(`/simple/price`).\n\n"
+            f"(`{onchain_symbols}` via `/simple/price`; `{aggregate_symbols}` via "
+            "`/coins/markets`, which also supplies its supply figure).\n\n"
             "**Gold spot price** — derived from PAXG's market price rather than a "
             "separate metals API, since PAXG is redeemable 1:1 for a troy ounce of "
             "LBMA-good-delivery gold.\n\n"
@@ -108,28 +165,35 @@ class GoldSource:
             f"tonnes ({gold.total_tonnes:,.0f} t) is from: {gold.source_citation}.\n\n"
             "Any value that falls back to a manually configured constant (RPC or "
             "price API failure) is marked stale — see the badge above if so.\n\n"
-            "**Verification** — each reading is cross-checked against two "
-            "independent sources: CoinGecko's reported `total_supply`, and "
-            "DefiLlama's tracked TVL for the same protocol (a genuinely separate "
-            "data provider, not just a second CoinGecko call). Both are free, "
-            "no-key APIs. Neither is a *better* source than the on-chain read "
-            "itself, but agreement across three independent sources (chain, "
-            "CoinGecko, DefiLlama) is a much stronger signal than any one alone."
+            f"**Verification** — {onchain_symbols} are each cross-checked "
+            "against two independent sources: CoinGecko's reported "
+            "`total_supply`, and DefiLlama's tracked TVL for the same protocol "
+            "(a genuinely separate data provider, not just a second CoinGecko "
+            "call). Both are free, no-key APIs. Neither is a *better* source "
+            "than the on-chain read itself, but agreement across three "
+            "independent sources (chain, CoinGecko, DefiLlama) is a much "
+            f"stronger signal than any one alone. {aggregate_symbols} only gets "
+            "a same-source consistency check (like Silver/Private Credit), "
+            "since CoinGecko's aggregate *is* its primary source and no free "
+            "DefiLlama entry tracks Kinesis Money correctly."
         )
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:
-        # PAXG and XAUT are both redeemable ~1:1 for a troy oz of gold, so the token
-        # quantities already fetched double as the tokenized weight — no extra fetch.
+        # PAXG, XAUT, and KAU are all redeemable ~1:1 for a troy oz of gold, so
+        # the token quantities already fetched double as the tokenized weight —
+        # no extra fetch.
         tokenized_oz = sum(c.quantity for c in result.components)
         total_oz = self._config.gold.total_tonnes * TROY_OZ_PER_TONNE
         return (format_tonnes(tokenized_oz), format_tonnes(total_oz))
 
     def _get_prices(self) -> dict[str, PriceReading]:
+        # Only on-chain-read tokens need this (price only, supply comes from the
+        # chain); aggregate tokens get price+supply together via fetch_market_data.
         if self._price_cache is None:
-            coingecko_ids = [token.coingecko_id for token in self._config.gold.tokens]
+            onchain_tokens = [t for t in self._config.gold.tokens if t.read_onchain]
+            coingecko_ids = [token.coingecko_id for token in onchain_tokens]
             fallback_prices = {
-                token.coingecko_id: token.fallback_price_usd
-                for token in self._config.gold.tokens
+                token.coingecko_id: token.fallback_price_usd for token in onchain_tokens
             }
             self._price_cache = fetch_simple_prices(
                 self._config.coingecko_base_url,

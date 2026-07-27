@@ -44,13 +44,18 @@ class TokenConfig:
     # "paxos-gold" — verified manually to track this exact entity under a directly
     # comparable metric (see sources/defillama.py). Empty if no good match exists.
     defillama_slug: str = ""
+    # False for tokens where the Ethereum contract doesn't hold the full supply
+    # (e.g. natively minted on another ledger, with Ethereum only a small
+    # "wrapped" fraction) — verified manually per token, not assumed. Those use
+    # CoinGecko's aggregate `total_supply` instead of an on-chain read.
+    read_onchain: bool = True
 
 
 @dataclass(frozen=True)
 class GoldConfig:
     total_tonnes: float
     source_citation: str
-    tokens: tuple[TokenConfig, TokenConfig]
+    tokens: tuple[TokenConfig, ...]
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,28 @@ _XAUT = TokenConfig(
     defillama_slug="tether-gold",
 )
 
+_KAU = TokenConfig(
+    symbol="KAU",
+    issuer="Kinesis",
+    backing=(
+        "1 troy oz of allocated gold (999.9 fine), stored in fully insured, "
+        "LBMA-standard vaults across six continents. Redeemable for physical "
+        "delivery or vault withdrawal."
+    ),
+    contract_address="0x14dAB79fD7B7B3F748d434812fD6a9AaC460EA52",
+    expected_decimals=18,
+    coingecko_id="kinesis-gold",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/kinesis-gold if this drifts too far from live.
+    fallback_supply=2_386_227.83,
+    fallback_price_usd=131.99,
+    # Same issue as Silver's KAG: natively minted on Kinesis's own ledger (a
+    # Stellar fork). An on-chain read of the Ethereum contract gave ~1.64M
+    # tokens vs. CoinGecko's aggregate ~2.39M (verified 2026-07-26) — Ethereum
+    # alone is a "wrapped" fraction, not the full supply.
+    read_onchain=False,
+)
+
 _GOLD_CONFIG = GoldConfig(
     # World Gold Council, Goldhub "How Much Gold" dataset — above-ground stock,
     # year-end 2024 estimate. Retrieved 2026-07-25.
@@ -135,7 +162,11 @@ _GOLD_CONFIG = GoldConfig(
         "World Gold Council, Goldhub 'How Much Gold' (above-ground stock, YE2024), "
         "retrieved 2026-07-25"
     ),
-    tokens=(_PAXG, _XAUT),
+    # PAXG and XAUT are the two largest gold-backed tokens by a wide margin. KAU
+    # (Kinesis Gold, ~$315M) is a clear, worthwhile third (~6% on top of
+    # PAXG+XAUT combined) — the same "worth it if not tiny" bar Silver's SLVON
+    # was added under.
+    tokens=(_PAXG, _XAUT, _KAU),
 )
 
 
