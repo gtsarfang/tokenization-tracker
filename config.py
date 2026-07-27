@@ -37,9 +37,19 @@ class TokenConfig:
     backing: str
     contract_address: str
     expected_decimals: int
+    # Empty for tokens with no reliable live source at all (see `manual_value_usd`
+    # below) — everything else is fetched live from CoinGecko every refresh.
     coingecko_id: str
     fallback_supply: float
     fallback_price_usd: float
+    # For tokens with no trustworthy live-fetchable source (verified manually,
+    # not assumed): a manually maintained USD value, refreshed periodically from
+    # rwa.xyz, used every refresh instead of a CoinGecko call. Always reported
+    # as FALLBACK-quality/stale — same honesty as any other fallback figure,
+    # just permanent rather than triggered by an API outage. None for every
+    # normal, live-fetched token.
+    manual_value_usd: float | None = None
+    manual_note: str = ""
     # DefiLlama protocol slug for an independent (non-CoinGecko) cross-check, e.g.
     # "paxos-gold" — verified manually to track this exact entity under a directly
     # comparable metric (see sources/defillama.py). Empty if no good match exists.
@@ -408,6 +418,94 @@ _WTGXX = TokenConfig(
     read_onchain=False,
 )
 
+_MANUAL_NOTE_SUFFIX = (
+    "no reliable live-fetchable source found — see README's 'Roadmap / known "
+    "gaps' — manually set from rwa.xyz, checked 2026-07-27; refresh periodically"
+)
+
+_BENJI = TokenConfig(
+    symbol="BENJI",
+    issuer="Franklin Templeton",
+    backing=(
+        "Shares in the Franklin OnChain US Government Money Fund (FOBXX, "
+        "distributing share class), holding US government securities, cash, "
+        "and repo collateralized by government securities."
+    ),
+    contract_address="GBHNGLLIE3KWGKCHIKMHJ5HVZHYIK7WTBE4QF5PLAKL4CJGSEU7HZIW5",
+    expected_decimals=0,
+    coingecko_id="",
+    fallback_supply=0.0,
+    fallback_price_usd=0.0,
+    # Minted across 8 chains (Stellar, Ethereum, Polygon, Arbitrum, Avalanche,
+    # Base, Solana, Aptos) with no aggregate live source: CoinGecko's
+    # `franklin-templeton-benji` listing only reflects a fraction of that (its
+    # `total_supply` implies ~$226M vs. the ~$735M below), and a direct read of
+    # just the Stellar issuer (the fund's original chain) gives only ~$489M —
+    # confirming Stellar alone no longer represents the global total either.
+    manual_value_usd=734_873_184.0,
+    manual_note=_MANUAL_NOTE_SUFFIX,
+    read_onchain=False,
+)
+
+_IBENJI = TokenConfig(
+    symbol="iBENJI",
+    issuer="Franklin Templeton",
+    backing=(
+        "Shares in the Franklin OnChain US Government Money Fund (FOBXX, "
+        "accumulating/reinvesting share class — same fund and holdings as "
+        "BENJI, a different share class, not overlapping AUM)."
+    ),
+    contract_address="0x90276e9d4a023b5229e0c2e9d4b2a83fe3a2b48c",
+    expected_decimals=18,
+    coingecko_id="",
+    fallback_supply=0.0,
+    fallback_price_usd=0.0,
+    # Not listed on CoinGecko at all (only plain BENJI is, and only partially —
+    # see above). Minted on Ethereum and BNB Smart Chain.
+    manual_value_usd=1_760_152_118.0,
+    manual_note=_MANUAL_NOTE_SUFFIX,
+    read_onchain=False,
+)
+
+_JLTXX = TokenConfig(
+    symbol="JLTXX",
+    issuer="JPMorgan",
+    backing=(
+        "Shares in JPMorgan's OnChain Liquidity-Token Money Market Fund, "
+        "issued on Kinexys (JPMorgan's permissioned blockchain), holding "
+        "short-term US government securities and repo."
+    ),
+    contract_address="",
+    expected_decimals=0,
+    coingecko_id="",
+    fallback_supply=0.0,
+    fallback_price_usd=0.0,
+    # No public API at all: CoinGecko's `jpmorgan-onchain-liquidity-token-...`
+    # listing has no price/supply data (Kinexys is a permissioned ledger, not
+    # publicly queryable like a normal chain).
+    manual_value_usd=811_340_543.0,
+    manual_note=_MANUAL_NOTE_SUFFIX,
+    read_onchain=False,
+)
+
+_CUMIU = TokenConfig(
+    symbol="CUMIU",
+    issuer="ChinaAMC",
+    backing=(
+        "Shares in ChinaAMC's USD Digital Money Market Fund (Class I USD), "
+        "holding short-term US government securities."
+    ),
+    contract_address="",
+    expected_decimals=0,
+    coingecko_id="",
+    fallback_supply=0.0,
+    fallback_price_usd=0.0,
+    # Not listed on CoinGecko or DefiLlama at all.
+    manual_value_usd=550_370_048.0,
+    manual_note=_MANUAL_NOTE_SUFFIX,
+    read_onchain=False,
+)
+
 _TREASURY_CONFIG = TreasuryConfig(
     # US Treasury Fiscal Data, "Debt Held by the Public" (Debt to the Penny),
     # 2026-07-23: $31.91T (latest available as of 2026-07-26). Used only if the
@@ -424,13 +522,16 @@ _TREASURY_CONFIG = TreasuryConfig(
     # added WisdomTree's WTGXX (~$737M), Janus Henderson's JTRSY (~$870M, issued
     # via Centrifuge), Superstate's USTB (~$820M, distributed with Invesco), and
     # Ondo's OUSG (~$409M) — each independently >5% of the running total (OUSG
-    # borderline; see its comment above). Franklin Templeton's BENJI/iBENJI and
-    # JPMorgan's JLTXX (Kinexys) are bigger gaps still (~$2.5B and ~$811M) but
-    # have no trustworthy live-fetchable source: CoinGecko's BENJI listing
-    # undercounts by ~10x and JLTXX has no supply/price data at all (both are
-    # permissioned/private-ledger products, not really tracked). ChinaAMC's
-    # CUMIU (~$550M) isn't on CoinGecko or DefiLlama at all.
-    tokens=(_BUIDL, _USDY, _USYC, _JTRSY, _USTB, _OUSG, _WTGXX),
+    # borderline; see its comment above). A follow-up pass the same day tied out
+    # the remaining known gaps that have no live-fetchable source at all —
+    # Franklin Templeton's BENJI + iBENJI (~$2.5B combined) and JPMorgan's
+    # JLTXX/Kinexys (~$811M) — as manually maintained figures (`manual_value_usd`
+    # on each TokenConfig above), same honest fallback-quality treatment as any
+    # other stale reading, just permanent rather than outage-triggered. ChinaAMC's
+    # CUMIU (~$550M) is the same situation. A residual ~$1.7B gap remains spread
+    # across dozens of smaller funds (largest ~$256M, OpenEden) — not
+    # individually worth tracking; see README.
+    tokens=(_BUIDL, _USDY, _USYC, _JTRSY, _USTB, _OUSG, _WTGXX, _BENJI, _IBENJI, _JLTXX, _CUMIU),
 )
 
 

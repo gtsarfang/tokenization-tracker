@@ -19,8 +19,8 @@ inferred from a dot's position.
 
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
 **silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
-(BUIDL + USDY + USYC + JTRSY + USTB + OUSG + WTGXX vs. total US Treasury debt
-held by the public). Cards render in a
+(BUIDL + USDY + USYC + JTRSY + USTB + OUSG + WTGXX + BENJI + iBENJI + JLTXX +
+CUMIU vs. total US Treasury debt held by the public). Cards render in a
 3-per-row grid (wide page layout) that keeps filling out as more asset classes
 are added.
 
@@ -186,15 +186,29 @@ single-canonical-chain tokens with no bridging ambiguity.)
 BUIDL, USDY, USYC, and — added 2026-07-27 after a coverage review against
 rwa.xyz's full ranked list — Janus Henderson's JTRSY (issued via Centrifuge),
 Superstate's USTB (distributed with Invesco), Ondo's OUSG, and WisdomTree's
-WTGXX are the tokenized US Treasury products confirmed clean so far (as of
-2026-07-26, USYC ~$3.0B AUM per CoinGecko and DefiLlama agreeing closely; the
-four newer ones ~$400M-$870M each, all corroborated within ~15% by rwa.xyz).
+WTGXX are all fetched **live** every refresh, the same CoinGecko-primary
+approach as BUIDL/USDY (as of 2026-07-26, USYC ~$3.0B AUM per CoinGecko and
+DefiLlama agreeing closely; the four newer ones ~$400M-$870M each, all
+corroborated within ~15% by rwa.xyz).
+
+Four more — Franklin Templeton's **BENJI** and **iBENJI**, JPMorgan's
+**JLTXX**, and ChinaAMC's **CUMIU** — are included as **manually maintained**
+figures instead: none has a trustworthy live API (CoinGecko undercounts BENJI
+by ~10x and doesn't list the other three at all; JLTXX runs on JPMorgan's
+permissioned Kinexys ledger, not a publicly queryable chain). Each is set from
+rwa.xyz and always reported as fallback/stale quality — the same honesty the
+app already applies to any fallback figure, just permanent here rather than
+outage-triggered, and refreshed periodically by hand instead of every request.
+
 That review also corrected an earlier, blog-sourced estimate of the gap that
 had turned out to be wrong in several places — see "Roadmap / known gaps"
-below for what's still missing and why. This remains an undercount, never an
-overcount. No double-counting: all seven are independently managed
-funds/vehicles holding their own short-term Treasury bills and repo positions,
-not wrapped/derivative versions of each other.
+below for the full trail and what's still missing. This remains an
+undercount, never an overcount. No double-counting: all eleven are
+independently managed funds/vehicles holding their own short-term Treasury
+bills and repo positions, not wrapped/derivative versions of each other (BENJI
+and iBENJI are different share classes of the same underlying fund, FOBXX,
+which is not double-counting any more than a mutual fund's Class A vs. Class C
+shares would be).
 
 **Total Treasury debt** — fetched **live** on every refresh from the US Treasury's
 own [Fiscal Data API](https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/)
@@ -332,34 +346,41 @@ them.
   institutional business lending denominator); revisit with a properly matched
   denominator (e.g. total US home equity/HELOC lending) or drop it for a different
   private-credit product.
-- **More Treasury products** — current total (~$10.6B: BUIDL + USDY + USYC +
-  JTRSY + USTB + OUSG + WTGXX) is still a real undercount, not just a rounding
-  gap. **Janus Henderson JTRSY** (~$870M, issued via Centrifuge), **Superstate
-  USTB** (~$820M, distributed with Invesco), **Ondo OUSG** (~$409M), and
-  **WisdomTree WTGXX** (~$737M) were wired in 2026-07-27 via their CoinGecko
-  listings, same multi-chain-aggregate approach as BUIDL/USDY/USYC.
-  - This 2026-07-27 pass also **corrected an earlier gap estimate that turned
-    out to be wrong** — it had been built from blog aggregator sources instead
-    of rwa.xyz directly, and named "Spiko ~$2.2B", "Kinexys ~$913M",
-    "Centrifuge ~$891M", and "Libeara ~$786M" as top candidates. Checked
-    directly against rwa.xyz's own ranked list: Spiko's actual fund (USTBL) is
-    only ~$145M (well under the 5% bar), and Kinexys/Centrifuge/Libeara don't
-    appear as named issuers in rwa.xyz's list at all — likely fabricated or
-    conflated by the blog sources. "Centrifuge" turned out to really be JTRSY
-    (Centrifuge is the issuing protocol, Janus Henderson/Anemoy the manager) —
-    now wired in above.
-  - **Still-open gaps, confirmed directly against rwa.xyz (checked
-    2026-07-27):** **Franklin Templeton BENJI + iBENJI** (~$735M + ~$1.76B
-    combined, distributing/accumulating share classes of the same fund,
-    FOBXX) and **JPMorgan JLTXX** ("Kinexys", ~$811M) are the two biggest
-    remaining gaps, but neither has a trustworthy live-fetchable source yet:
-    CoinGecko's `franklin-templeton-benji` listing undercounts by ~10x
-    (`total_supply` implies ~$226M vs. rwa.xyz's ~$735M for BENJI alone, and
-    there's no separate iBENJI listing at all), and JLTXX has no
-    price/supply/contract data on CoinGecko at all (both are effectively
-    permissioned/private-ledger products, not really tracked by public
-    aggregators). **ChinaAMC CUMIU** (~$550M) isn't listed on CoinGecko or
-    DefiLlama either. OpenEden (~$256M, ~2%) is now the largest one checked
-    that's genuinely *under* 5% of the current total.
+- **More Treasury products** — current total is ~$14.5B (BUIDL + USDY + USYC +
+  JTRSY + USTB + OUSG + WTGXX + BENJI + iBENJI + JLTXX + CUMIU), up from ~$7.8B
+  a few passes ago. **Janus Henderson JTRSY** (~$870M, issued via Centrifuge),
+  **Superstate USTB** (~$820M, distributed with Invesco), **Ondo OUSG**
+  (~$409M), and **WisdomTree WTGXX** (~$737M) were wired in 2026-07-27 via
+  their CoinGecko listings, same multi-chain-aggregate approach as
+  BUIDL/USDY/USYC.
+  - That pass also **corrected an earlier gap estimate that turned out to be
+    wrong** — it had been built from blog aggregator sources instead of
+    rwa.xyz directly, and named "Spiko ~$2.2B", "Kinexys ~$913M", "Centrifuge
+    ~$891M", and "Libeara ~$786M" as top candidates. Checked directly against
+    rwa.xyz's own ranked list: Spiko's actual fund (USTBL) is only ~$145M
+    (well under the 5% bar), and Kinexys/Centrifuge/Libeara don't appear as
+    named issuers in rwa.xyz's list at all — likely fabricated or conflated by
+    the blog sources. "Centrifuge" turned out to really be JTRSY (Centrifuge
+    is the issuing protocol, Janus Henderson/Anemoy the manager).
+  - **A follow-up pass tied out the remaining gaps that have no live API at
+    all**, as manually maintained figures (`TokenConfig.manual_value_usd`,
+    always reported as fallback/stale quality — same honest treatment as any
+    other fallback, just permanent instead of outage-triggered, refreshed
+    periodically from rwa.xyz): **Franklin Templeton BENJI** (~$735M) +
+    **iBENJI** (~$1.76B, the accumulating share class of the same fund,
+    FOBXX), **JPMorgan JLTXX** ("Kinexys", ~$811M), and **ChinaAMC CUMIU**
+    (~$550M). None have a trustworthy live source: CoinGecko's
+    `franklin-templeton-benji` listing undercounts BENJI by ~10x
+    (`total_supply` implies ~$226M vs. its real ~$735M, and there's no
+    separate iBENJI listing at all) — confirmed by also reading BENJI's
+    Stellar issuer directly via the Horizon API (~$489M), which shows even
+    Stellar, the fund's original chain, no longer holds the full multi-chain
+    total either. JLTXX and CUMIU have no price/supply/contract data on
+    CoinGecko or DefiLlama at all (JLTXX runs on Kinexys, JPMorgan's
+    permissioned ledger — not a publicly queryable chain).
+  - **Residual gap, accepted rather than chased**: ~$1.7B still spread across
+    dozens of smaller funds (largest is OpenEden at ~$256M, ~1.8% of the
+    current total) — not individually worth the same per-token verification
+    effort as the ones above.
 - **% tokenized over time** — snapshots are already stored in SQLite on every
   live refresh (see "Running locally" above); nothing charts that history yet.

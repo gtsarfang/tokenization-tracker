@@ -34,7 +34,9 @@ def _get_connection(db_path: str) -> sqlite3.Connection:
 def _load_market_data(config: AppConfig) -> dict[str, MarketDataReading]:
     # The one CoinGecko call the whole app makes — every source reads from this
     # shared result instead of fetching its own tokens independently.
-    tokens = registry.all_tokens(config)
+    # Tokens with no coingecko_id have no live source at all (see
+    # TokenConfig.manual_value_usd) and are excluded from this fetch entirely.
+    tokens = [t for t in registry.all_tokens(config) if t.coingecko_id]
     return fetch_market_data(
         config.coingecko_base_url,
         [t.coingecko_id for t in tokens],

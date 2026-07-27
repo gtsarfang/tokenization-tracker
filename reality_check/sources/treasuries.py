@@ -64,6 +64,22 @@ class TreasurySource:
 
         components = []
         for token in self._config.treasuries.tokens:
+            if token.manual_value_usd is not None:
+                components.append(
+                    ComponentValue(
+                        symbol=token.symbol,
+                        quantity=1.0,
+                        unit_price_usd=token.manual_value_usd,
+                        value_usd=token.manual_value_usd,
+                        supply_quality=DataQuality.FALLBACK,
+                        price_quality=DataQuality.FALLBACK,
+                        note=token.manual_note,
+                        display_name=f"{token.issuer} {token.symbol}",
+                        backing=token.backing,
+                    )
+                )
+                continue
+
             reading = market[token.coingecko_id]
             value_usd = reading.total_supply * reading.price_usd
             notes = [reading.note, consistency_note(reading)]
@@ -149,15 +165,20 @@ class TreasurySource:
             f"**Why {symbols}?** BlackRock's BUIDL, Ondo's USDY, Circle's USYC "
             "(Hashnote's US Yield Coin), Janus Henderson's JTRSY (issued via "
             "Centrifuge), Superstate's USTB (distributed with Invesco), Ondo's "
-            "OUSG, and WisdomTree's WTGXX are the tokenized US Treasury "
-            "products confirmed clean so far. Franklin Templeton's BENJI/"
-            "iBENJI and JPMorgan's JLTXX are bigger gaps still but have no "
-            "trustworthy live-fetchable source (see README) — this means the "
+            "OUSG, and WisdomTree's WTGXX are fetched live every refresh. "
+            "Franklin Templeton's BENJI and iBENJI, JPMorgan's JLTXX, and "
+            "ChinaAMC's CUMIU are included too, but as manually maintained "
+            "figures instead — none has a trustworthy live API (see README) — "
+            "always reported at fallback/stale quality, the same honesty "
+            "applied to any other fallback figure. A residual gap (~$1.7B "
+            "across dozens of smaller funds) remains untracked; this means the "
             "true tokenized total is an undercount, never an overcount.\n\n"
             "**Is summing them correct — any overlap?** No double-counting: "
-            "all seven are independently managed funds/vehicles holding their "
+            "all eleven are independently managed funds/vehicles holding their "
             "own short-term Treasury bills and repo positions, not wrapped or "
-            "derivative versions of each other or of a shared pool.\n\n"
+            "derivative versions of each other or of a shared pool (BENJI and "
+            "iBENJI are different share classes of the same fund, no more "
+            "double-counted than a mutual fund's Class A vs. Class C shares).\n\n"
             "**Total Treasury debt** — fetched live from the US Treasury's own "
             "Fiscal Data API (`debt_to_penny`), using 'Debt Held by the Public' "
             "(total public debt minus intragovernmental holdings) as the closest "
