@@ -11,8 +11,12 @@ import streamlit as st
 
 from config import load_config
 from reality_check import registry, viz
+from reality_check.interfaces import AssetClassSource
+from reality_check.models import AssetClassResult
 from reality_check.orchestrator import refresh_asset_class
-from reality_check.storage import fetch_latest_snapshot, get_connection, init_db
+from reality_check.storage import get_connection, init_db
+
+_REFRESH_TTL_SECONDS = 300
 
 
 @st.cache_resource
@@ -20,6 +24,15 @@ def _get_connection(db_path: str) -> sqlite3.Connection:
     conn = get_connection(db_path)
     init_db(conn)
     return conn
+
+
+@st.cache_data(ttl=_REFRESH_TTL_SECONDS)
+def _load_result(name: str, _source: AssetClassSource, _conn: sqlite3.Connection) -> AssetClassResult:
+    # Leading underscore on _source/_conn tells Streamlit not to hash them as part
+    # of the cache key (they aren't hashable) — `name` alone is the cache key, so
+    # this re-fetches live data at most once per TTL window per asset class,
+    # regardless of how many times the page reruns (e.g. from toggling a radio).
+    return refresh_asset_class(_source, _conn)
 
 
 def main() -> None:
@@ -35,16 +48,11 @@ def main() -> None:
         "Tracking how much of each real-world asset class has moved on-chain.",
     )
 
-    if st.button("Refresh all"):
-        for source in sources.values():
-            refresh_asset_class(source, conn)
+    results = {name: _load_result(name, source, conn) for name, source in sources.items()}
 
-    results = {}
-    for name, source in sources.items():
-        result = fetch_latest_snapshot(conn, name)
-        if result is None:
-            result = refresh_asset_class(source, conn)
-        results[name] = result
+    # One shared display-mode control for every card, instead of each card having
+    # its own independent toggle (which let cards show inconsistent units at once).
+    mode = st.segmented_control("Display as", ["%", "$", "mass"], default="%", key="global_mode")
 
     # Pad every card's breakdown to the same number of rows so cards line up to
     # the same height regardless of how many components an asset class has.
@@ -60,15 +68,14 @@ def main() -> None:
                 source = sources[name]
                 result = results[name]
 
-                if viz.render_asset_bar(
+                viz.render_asset_bar(
                     result,
                     key=name,
                     methodology=source.describe_methodology(),
                     quantity=source.describe_quantity(result),
                     pad_rows_to=max_components,
-                ):
-                    refresh_asset_class(source, conn)
-                    st.rerun()
+                    mode=mode or "%",
+                )
 
 
 if __name__ == "__main__":

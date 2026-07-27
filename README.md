@@ -238,9 +238,12 @@ copy .env.example .env          # optional — defaults work out of the box
 streamlit run app.py
 ```
 
-Click "Refresh" (per-asset) or "Refresh all" to re-fetch live data and store a new
-snapshot in SQLite (`data/reality_check.db`). History is preserved across runs,
-enabling future charting of % tokenized over time.
+Each asset class re-fetches live data automatically at most once every 5 minutes
+(`st.cache_data(ttl=300)` in `app.py`) — no manual refresh button. This keeps the
+page responsive to UI interactions (like toggling %/$/mass) without re-hitting
+every API on each rerun, while still staying reasonably fresh. Each live fetch
+stores a new snapshot in SQLite (`data/reality_check.db`); history is preserved
+across runs, enabling future charting of % tokenized over time.
 
 The Streamlit "Deploy" toolbar button is hidden by default (`.streamlit/config.toml`,
 `toolbarMode = "minimal"`) since this app isn't meant to be one-click-deployed from a

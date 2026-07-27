@@ -239,7 +239,8 @@ def render_asset_bar(
     methodology: str,
     quantity: tuple[str, str] | None = None,
     pad_rows_to: int = 0,
-) -> bool:
+    mode: str = "%",
+) -> None:
     label = key.replace("_", " ").title()
     theme = _ASSET_THEME.get(key, _DEFAULT_THEME)
 
@@ -251,10 +252,6 @@ def render_asset_bar(
             f'<div class="rc-card-title">{label}</div>'
             f"</div>",
             unsafe_allow_html=True,
-        )
-        modes = ["%", "$"] + (["mass"] if quantity else [])
-        mode = st.radio(
-            "Display as", modes, horizontal=True, key=f"mode_{key}", label_visibility="collapsed"
         )
         st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
 
@@ -276,10 +273,6 @@ def render_asset_bar(
             if result.source_notes:
                 st.divider()
                 st.caption(f"Latest verification: {result.source_notes}")
-
-        clicked = st.button("Refresh", key=f"refresh_{key}")
-
-    return clicked
 
 
 def _hero_html(
