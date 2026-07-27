@@ -19,9 +19,10 @@ inferred from a dot's position.
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
 **silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
 (BUIDL + USDY + USYC + JTRSY + USTB + OUSG + WTGXX + BENJI + iBENJI + JLTXX +
-CUMIU vs. total US Treasury debt held by the public). Cards render in a
-3-per-row grid (wide page layout) that keeps filling out as more asset classes
-are added.
+CUMIU vs. total US Treasury debt held by the public). Sections stack
+full-width (wide page layout), giving each one room for its breakdown table
+and log-scale bar side by side rather than cramming into a narrow grid
+column.
 
 A fourth card, US private credit (Figure's tokenized HELOC portfolio vs. total
 US private credit market), was built and then removed: the denominator measures
