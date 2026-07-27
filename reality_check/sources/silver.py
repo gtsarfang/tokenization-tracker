@@ -89,7 +89,15 @@ class SilverSource:
             "figure to cross-check against (CoinGecko's aggregate *is* the primary "
             "source). Instead, `total_supply × price` is checked against "
             "CoinGecko's own reported `market_cap` from the same API response — "
-            "this can't catch a wrong source, only an internally inconsistent one."
+            "this can't catch a wrong source, only an internally inconsistent one. "
+            "DefiLlama (used as a genuine second source for gold and Treasuries) "
+            "was checked but has no entry that clearly tracks Kinesis Silver "
+            "specifically as of 2026-07-26 — its 'Kinesis Labs' listing is an "
+            "unrelated protocol, not Kinesis Money. A manual spot-check against "
+            "CoinMarketCap on 2026-07-26 showed it roughly agreeing with "
+            "CoinGecko (~3.67M vs ~3.78M circulating supply, ~$189M vs ~$191M "
+            "market cap) — not wired in as a live check, but a reassuring sanity "
+            "check on the one number this app does rely on for Silver."
         )
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:

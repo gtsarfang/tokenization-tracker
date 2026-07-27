@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from config import TROY_OZ_PER_TONNE, AppConfig, format_tonnes
 from reality_check.models import AssetClassResult, ComponentValue, TotalValue
+from reality_check.sources.defillama import defillama_cross_check_note, fetch_protocol_tvl
 from reality_check.sources.onchain import get_web3, read_erc20_total_supply
 from reality_check.sources.prices import (
     PriceReading,
@@ -43,16 +44,25 @@ class GoldSource:
                 token.fallback_supply,
             )
             price = prices[token.coingecko_id]
+            value_usd = supply.quantity * price.price_usd
             verification = cross_check_note(supply.quantity, cross_checks[token.coingecko_id])
+            defillama_note = ""
+            if token.defillama_slug:
+                defillama_reading = fetch_protocol_tvl(
+                    token.defillama_slug, self._config.coingecko_timeout_seconds
+                )
+                defillama_note = defillama_cross_check_note(value_usd, defillama_reading)
             components.append(
                 ComponentValue(
                     symbol=token.symbol,
                     quantity=supply.quantity,
                     unit_price_usd=price.price_usd,
-                    value_usd=supply.quantity * price.price_usd,
+                    value_usd=value_usd,
                     supply_quality=supply.quality,
                     price_quality=price.quality,
-                    note="; ".join(n for n in (supply.note, price.note, verification) if n),
+                    note="; ".join(
+                        n for n in (supply.note, price.note, verification, defillama_note) if n
+                    ),
                     display_name=f"{token.issuer} {token.symbol}",
                     backing=token.backing,
                 )
@@ -97,7 +107,14 @@ class GoldSource:
             f"{TROY_OZ_PER_TONNE:,.4f} troy oz/tonne × spot price, where total "
             f"tonnes ({gold.total_tonnes:,.0f} t) is from: {gold.source_citation}.\n\n"
             "Any value that falls back to a manually configured constant (RPC or "
-            "price API failure) is marked stale — see the badge above if so."
+            "price API failure) is marked stale — see the badge above if so.\n\n"
+            "**Verification** — each reading is cross-checked against two "
+            "independent sources: CoinGecko's reported `total_supply`, and "
+            "DefiLlama's tracked TVL for the same protocol (a genuinely separate "
+            "data provider, not just a second CoinGecko call). Both are free, "
+            "no-key APIs. Neither is a *better* source than the on-chain read "
+            "itself, but agreement across three independent sources (chain, "
+            "CoinGecko, DefiLlama) is a much stronger signal than any one alone."
         )
 
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str] | None:

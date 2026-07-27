@@ -9,6 +9,7 @@ from __future__ import annotations
 from config import AppConfig
 from reality_check.interfaces import AssetClassSource
 from reality_check.sources.gold import GoldSource
+from reality_check.sources.private_credit import PrivateCreditSource
 from reality_check.sources.silver import SilverSource
 from reality_check.sources.treasuries import TreasurySource
 
@@ -18,4 +19,5 @@ def get_sources(config: AppConfig) -> dict[str, AssetClassSource]:
         "gold": GoldSource(config),
         "silver": SilverSource(config),
         "treasuries": TreasurySource(config),
+        "private_credit": PrivateCreditSource(config),
     }

@@ -40,6 +40,10 @@ class TokenConfig:
     coingecko_id: str
     fallback_supply: float
     fallback_price_usd: float
+    # DefiLlama protocol slug for an independent (non-CoinGecko) cross-check, e.g.
+    # "paxos-gold" — verified manually to track this exact entity under a directly
+    # comparable metric (see sources/defillama.py). Empty if no good match exists.
+    defillama_slug: str = ""
 
 
 @dataclass(frozen=True)
@@ -52,6 +56,13 @@ class GoldConfig:
 @dataclass(frozen=True)
 class SilverConfig:
     total_tonnes: float
+    source_citation: str
+    tokens: tuple[TokenConfig, ...]
+
+
+@dataclass(frozen=True)
+class PrivateCreditConfig:
+    total_market_usd: float
     source_citation: str
     tokens: tuple[TokenConfig, ...]
 
@@ -75,6 +86,7 @@ class AppConfig:
     db_path: str
     gold: GoldConfig
     silver: SilverConfig
+    private_credit: PrivateCreditConfig
     treasuries: TreasuryConfig
 
 
@@ -94,6 +106,7 @@ _PAXG = TokenConfig(
     # https://www.coingecko.com/en/coins/pax-gold if this drifts too far from live.
     fallback_supply=249_000.0,
     fallback_price_usd=3_360.0,
+    defillama_slug="paxos-gold",
 )
 
 _XAUT = TokenConfig(
@@ -110,6 +123,7 @@ _XAUT = TokenConfig(
     # https://www.coingecko.com/en/coins/tether-gold if this drifts too far from live.
     fallback_supply=246_000.0,
     fallback_price_usd=3_365.0,
+    defillama_slug="tether-gold",
 )
 
 _GOLD_CONFIG = GoldConfig(
@@ -168,6 +182,42 @@ _SILVER_CONFIG = SilverConfig(
 )
 
 
+# --- FIGR_HELOC contract facts (not user-tunable via env) -------------------------
+# Figure's tokenized HELOC portfolio (FIGR_HELOC) is the dominant tokenized private
+# credit product by a wide margin (~75% of the category). It runs on Provenance, a
+# non-EVM chain we don't otherwise integrate with — but it's already tracked on
+# CoinGecko like any other coin, so no Provenance-specific integration is needed;
+# this uses the same CoinGecko-aggregate-as-primary-source pattern as
+# silver.py/treasuries.py, just for a different underlying reason (non-EVM chain
+# rather than multi-chain issuance).
+
+_FIGR_HELOC = TokenConfig(
+    symbol="FIGR_HELOC",
+    issuer="Figure",
+    backing=(
+        "The unpaid principal balance of a portfolio of home equity lines of "
+        "credit (HELOCs) originated by Figure Technology Solutions, recorded and "
+        "managed on the Provenance blockchain."
+    ),
+    contract_address="scope1qrm5d0wjzamyywvjuws6774ljmrqu8kh9x",  # Provenance asset scope, not an EVM address
+    expected_decimals=3,
+    coingecko_id="figure-heloc",
+    # Manual fallback, last observed 2026-07-26. Refresh periodically from
+    # https://www.coingecko.com/en/coins/figure-heloc if this drifts too far from live.
+    fallback_supply=20_491_723_089.21,
+    fallback_price_usd=1.034,
+)
+
+_PRIVATE_CREDIT_CONFIG = PrivateCreditConfig(
+    # Global Market Insights Inc. (GMI), Report GMI16251, published 2026-07 —
+    # global private credit market size, 2025 estimate. Retrieved 2026-07-26.
+    # https://www.gminsights.com/industry-analysis/private-credit-market
+    total_market_usd=2_100_000_000_000.0,
+    source_citation="Global Market Insights Inc., Report GMI16251 (2025 estimate), retrieved 2026-07-26",
+    tokens=(_FIGR_HELOC,),
+)
+
+
 # --- BUIDL / USDY contract facts (not user-tunable via env) ------------------------
 # BUIDL and USDY are, as of 2026-07-26, two of the largest tokenized US Treasury
 # products (BlackRock's BUIDL and Ondo's USDY). Circle's USYC is currently comparable
@@ -188,6 +238,7 @@ _BUIDL = TokenConfig(
     # https://www.coingecko.com/en/coins/blackrock-usd-institutional-digital-liquidity-fund
     fallback_supply=2_636_982_101.22,
     fallback_price_usd=1.00,
+    defillama_slug="blackrock-buidl",
 )
 
 _USDY = TokenConfig(
@@ -205,6 +256,10 @@ _USDY = TokenConfig(
     # https://www.coingecko.com/en/coins/ondo-us-dollar-yield
     fallback_supply=1_894_599_428.93,
     fallback_price_usd=1.14,
+    # DefiLlama's "Ondo Yield Assets" protocol description ("liquid exposure to an
+    # ETF of short-term US Treasuries," a single share class) matches USDY
+    # specifically rather than a bundle of Ondo products — verified 2026-07-26.
+    defillama_slug="ondo-yield-assets",
 )
 
 _TREASURY_CONFIG = TreasuryConfig(
@@ -231,5 +286,6 @@ def load_config() -> AppConfig:
         db_path=os.environ.get("RC_DB_PATH", "data/reality_check.db"),
         gold=_GOLD_CONFIG,
         silver=_SILVER_CONFIG,
+        private_credit=_PRIVATE_CREDIT_CONFIG,
         treasuries=_TREASURY_CONFIG,
     )

@@ -9,9 +9,12 @@ imperceptible, so the comparison is log-scale instead, with order-of-magnitude
 gridlines so it reads as log rather than an arbitrary line.
 
 Currently covers **gold** (PAXG + XAUT vs. total above-ground gold value),
-**silver** (KAG vs. total above-ground silver value), and **Treasuries** (BUIDL +
-USDY vs. total US Treasury debt held by the public). Cards render in a 3-per-row
-grid (wide page layout) that keeps filling out as more asset classes are added.
+**silver** (KAG vs. total above-ground silver value), **Treasuries** (BUIDL + USDY
+vs. total US Treasury debt held by the public), and **private credit**
+(FIGR_HELOC vs. total global private credit market — currently ~1%, a much
+further-along story than the other three, which sit around 0.01-0.02%). Cards
+render in a 3-per-row grid (wide page layout) that keeps filling out as more
+asset classes are added.
 
 ![Screenshot](docs/screenshot.jpg)
 
@@ -94,27 +97,34 @@ quality.
 
 ### Treasuries
 
-**Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
-endpoint (`total_supply × current_price`), *not* read from a single on-chain
-contract like gold's PAXG/XAUT:
-- [BUIDL](https://www.coingecko.com/en/coins/blackrock-usd-institutional-digital-liquidity-fund)
-  (BlackRock USD Institutional Digital Liquidity Fund) — Ethereum contract
-  `0x7712C34205737192402172409a8F7ccef8aA2AEc`, but also natively minted on Solana,
-  Avalanche, Arbitrum, Optimism, Polygon, and Aptos
-- [USDY](https://www.coingecko.com/en/coins/ondo-us-dollar-yield) (Ondo US Dollar
-  Yield) — Ethereum contract `0x96F6eF951840721AdBF46Ac996b59E0235CB985C`, also
-  natively minted on Solana, Arbitrum, Mantle, Sui, and others
+**Tokenized value** — BUIDL (BlackRock USD Institutional Digital Liquidity Fund)
+and USDY (Ondo US Dollar Yield) are natively minted independently on multiple
+chains (BUIDL on 8, USDY on 12), each with its own separate supply — there's no
+single canonical chain whose `totalSupply()` represents the global total.
 
-**Why not read on-chain like gold does?** This was the original plan, and the first
-implementation did exactly that — reading `totalSupply()` from each token's Ethereum
-mainnet contract, same as PAXG/XAUT. The cross-check verification (below) caught
-that this undercounted BUIDL by ~13x and USDY by ~2x. Unlike PAXG/XAUT, which are
-single-canonical-chain tokens (Ethereum mainnet `totalSupply()` already reflects the
-full circulating supply, with any bridged copies backed by locked mainnet tokens),
-BUIDL and USDY are natively minted independently on each chain they're deployed to
-— there's no single canonical chain whose supply represents the global total. So for
-these two, CoinGecko's cross-chain-aggregated `total_supply` is used as the primary
-source instead of a single-chain on-chain read.
+This went through two fixes, not one:
+1. **First implementation**: read `totalSupply()` from each token's Ethereum
+   mainnet contract, same as gold's PAXG/XAUT. The CoinGecko cross-check caught
+   that this undercounted BUIDL by ~13x and USDY by ~2x, since — unlike
+   PAXG/XAUT, which are single-canonical-chain tokens — these two have no chain
+   whose local supply represents the total.
+2. **Second fix**: switched to CoinGecko's `/coins/markets` `total_supply ×
+   current_price` (its own claimed cross-chain aggregate). Checking that against
+   [DefiLlama](https://defillama.com/rwa) — a free, no-key, independent
+   aggregator with a public per-chain TVL breakdown — showed CoinGecko
+   *also* undercounts both: by ~30% for BUIDL, ~19% for USDY (as of
+   2026-07-26). DefiLlama's protocol pages
+   ([blackrock-buidl](https://defillama.com/protocol/blackrock-buidl),
+   [ondo-yield-assets](https://defillama.com/protocol/ondo-yield-assets)) sum
+   TVL explicitly across every chain they track the protocol on, which turned
+   out to be more complete than CoinGecko's supposedly-aggregated
+   `total_supply` for these two tokens specifically.
+
+DefiLlama's TVL is now used as the primary tokenized value when available, with
+CoinGecko's `total_supply × price` kept as a fallback and shown alongside it for
+comparison. (Gold's PAXG/XAUT don't have this problem — checked the same way,
+their on-chain reads matched DefiLlama within 0.5%, confirming they really are
+single-canonical-chain tokens.)
 
 BUIDL and USDY are two of the largest tokenized US Treasury products (as of
 2026-07-26). Circle's USYC is currently comparable in size or larger but isn't
@@ -131,26 +141,78 @@ marketable Treasury debt. Unlike gold's above-ground stock, this changes daily, 
 it's not a static config constant — only a fallback value is stored in `config.py`,
 used solely if the live API call fails.
 
+### Private credit
+
+**Tokenized supply & price** — fetched live from CoinGecko's `/coins/markets`
+endpoint (`total_supply × current_price`), same as Treasuries/Silver:
+- [FIGR_HELOC](https://www.coingecko.com/en/coins/figure-heloc) (Figure) — the
+  unpaid principal balance of a portfolio of home equity lines of credit (HELOCs)
+  originated by Figure Technology Solutions
+
+**Why CoinGecko instead of an on-chain read?** FIGR_HELOC runs on
+[Provenance](https://provenance.io/), a non-EVM blockchain this app doesn't
+otherwise integrate with (no `web3.py` support, different address format
+entirely). Building a Provenance-specific client for one token wasn't worth it —
+CoinGecko already tracks FIGR_HELOC like any other coin, so this reuses the exact
+same aggregate-source pattern already built for Treasuries/Silver, just for a
+different underlying reason (non-EVM chain rather than multi-chain issuance).
+
+**Why only FIGR_HELOC?** Figure's tokenized HELOC portfolio is the dominant
+tokenized private credit product by a wide margin (~75% of the category as of
+early 2026). Other platforms (Maple Finance, Centrifuge, Goldfinch) are real but
+smaller — candidates for a future addition, not excluded on principle. This means
+the true tokenized total is an undercount, never an overcount.
+
+**Total private credit market** — a periodically-updated estimate, similar in
+kind to gold's WGC figure:
+
+> Global Market Insights Inc., Report GMI16251, 2025 estimate ($2.1 trillion).
+> Retrieved 2026-07-26.
+> https://www.gminsights.com/industry-analysis/private-credit-market
+
+This is why private credit shows ~1% tokenized while the other three cards sit
+around 0.01-0.02% — it's a genuinely different, further-along category, not a
+different methodology being applied inconsistently.
+
 ## Verification / cross-checking
 
-For single-chain tokens like gold's PAXG/XAUT, on-chain `totalSupply()` is already
-the ground truth — nothing outranks reading the contract itself. But it's still
-possible to misconfigure a contract address or decimals value, so every such reading
-is cross-checked against CoinGecko's independently reported `total_supply` for the
-same token (`/coins/markets`). This is a sanity check for bugs, not a better source
-of truth: if the two disagree by more than 2%, the mismatch is flagged; otherwise a
-confirmation note is recorded. Results are shown under each asset's "How is this
-calculated?" expander as "Latest verification".
+Three tiers, depending on what's available for a given token:
 
-This check is exactly what caught the Treasuries and Silver multi-chain/multi-ledger
-issues described above — it's not just theoretical insurance, it changed the
-implementation twice.
+1. **Independent second source** (Gold's PAXG/XAUT, Treasuries' BUIDL/USDY) — a
+   genuinely separate data provider corroborates (or, as it turned out, corrects)
+   the primary source. For gold, on-chain `totalSupply()` is cross-checked against
+   both CoinGecko's `total_supply` and [DefiLlama](https://defillama.com/rwa)'s
+   tracked TVL for the same protocol — free, no-key APIs, verified manually to
+   track the right entity under a comparable metric before being wired in. For
+   Treasuries, DefiLlama and CoinGecko effectively check each other, and
+   DefiLlama's more-complete per-chain sum won out as primary (see above).
+2. **Same-source consistency check** (Silver, Private Credit) — `total_supply ×
+   price` is checked against CoinGecko's own reported `market_cap` from the same
+   API response. This can catch an internally inconsistent response (e.g. a stale
+   field) but not a wrong source, since there's no second provider tracking these
+   specific tokens under a comparable metric. [rwa.xyz](https://rwa.xyz) was
+   considered as a possible second source for these, but its API requires a paid/
+   institutional subscription (a discount exists for students/early-stage
+   projects, but it isn't free), which doesn't fit this app's "no signup, no key"
+   pattern — DefiLlama was checked instead specifically because it's free.
+3. **None available** — not every free provider tracks every token. DefiLlama's
+   "Kinesis Labs" listing is an unrelated protocol (not Kinesis Money/KAG), and
+   its Figure-related listings track different products (the exchange platform, a
+   lending pool), not the FIGR_HELOC certificate token — so Silver and Private
+   Credit fall back to tier 2 only. A one-off manual spot-check against
+   CoinMarketCap on 2026-07-26 (not wired into the app — no API key configured)
+   found Silver's number reassuringly close (~$189M vs. CoinGecko's ~$191M), but
+   Private Credit's materially different (~$15.05B vs. CoinGecko's ~$21.19B, a
+   ~27% gap) — documented as an open question in `private_credit.py`'s
+   methodology text rather than silently resolved, since FIGR_HELOC's supply
+   genuinely fluctuates (tracks unpaid loan principal) and there's no clear
+   evidence which aggregator is more current.
 
-Treasuries and Silver don't get this same cross-check, since CoinGecko's aggregate
-*is* their primary source — there's no better independent figure to check it
-against. Instead, for those, `total_supply × price` is checked against CoinGecko's
-own reported `market_cap` from the same API response, which can catch an internally
-inconsistent response (e.g. a stale field) but not a wrong source.
+Results are shown under each asset's "How is this calculated?" expander as "Latest
+verification". This is exactly what caught the Treasuries and Silver
+multi-chain/multi-ledger issues described above, and then caught a *second*,
+smaller undercount in Treasuries after the first fix — it's not just theoretical
+insurance, it changed the implementation three times across two asset classes.
 
 ## Fallback / staleness handling
 
@@ -206,11 +268,13 @@ reality_check/
 ├── storage.py         # SQLite schema + repository functions
 ├── viz.py             # Streamlit card/hero-stat/log-scale-bar rendering
 └── sources/
-    ├── onchain.py     # shared web3 ERC-20 supply reader
-    ├── prices.py      # shared CoinGecko price fetcher + cross-check/consistency helpers
-    ├── gold.py        # GoldSource — on-chain-read reference implementation
-    ├── silver.py      # SilverSource — CoinGecko-aggregate reference implementation
-    └── treasuries.py  # TreasurySource — live-total-fetch + CoinGecko-aggregate implementation
+    ├── onchain.py         # shared web3 ERC-20 supply reader
+    ├── prices.py          # shared CoinGecko price fetcher + cross-check/consistency helpers
+    ├── defillama.py       # shared free/no-key DefiLlama TVL fetcher + cross-check helper
+    ├── gold.py            # GoldSource — on-chain-read reference implementation
+    ├── silver.py          # SilverSource — CoinGecko-aggregate reference implementation
+    ├── treasuries.py      # TreasurySource — live-total-fetch + DefiLlama/CoinGecko implementation
+    └── private_credit.py  # PrivateCreditSource — CoinGecko-aggregate for a non-EVM-chain token
 ```
 
 To add a new asset class (e.g. tokenized real estate):

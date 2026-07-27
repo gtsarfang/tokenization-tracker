@@ -85,6 +85,12 @@ _ASSET_THEME: dict[str, _Theme] = {
         # navy -> mid-blue -> pale-blue, evoking US Treasury/government-bond tones
         track_gradient="linear-gradient(90deg, #1e3a5f 0%, #2b6cb0 55%, #a9c6e8 100%)",
     ),
+    "private_credit": _Theme(
+        accent="#0f766e",
+        icon_svg=_bank_icon("#0f766e"),
+        # deep teal -> teal -> pale teal, distinct from Treasuries' blue
+        track_gradient="linear-gradient(90deg, #0a4d47 0%, #0f766e 55%, #a7d8d2 100%)",
+    ),
 }
 
 
