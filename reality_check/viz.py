@@ -116,15 +116,15 @@ def inject_base_css() -> None:
         .rc-hero-sub { font-size: 0.76rem; color: rgba(127, 127, 127, 0.9); }
         .rc-hero-alt { font-size: 0.76rem; color: rgba(127, 127, 127, 0.95); margin-top: 0.15rem; }
         .rc-breakdown {
-            display: flex;
-            flex-direction: column;
-            gap: 0.3rem;
-            margin: 0.3rem 0 0.15rem 0;
-            padding: 0.4rem 0.6rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.6rem 1.2rem;
+            margin: 0.5rem 0 0.15rem 0;
+            padding: 0.5rem 0.7rem;
             background: rgba(127, 127, 127, 0.06);
             border-radius: 8px;
         }
-        .rc-breakdown-item:not(:last-child) {
+        .rc-breakdown-item {
             padding-bottom: 0.3rem;
             border-bottom: 1px solid rgba(127, 127, 127, 0.15);
         }
@@ -152,11 +152,12 @@ def inject_base_css() -> None:
         .rc-log-wrap { position: relative; margin: 1.3rem 0.25rem 0.3rem 0.25rem; }
         .rc-log-track {
             position: relative;
-            height: 6px;
-            border-radius: 3px;
+            height: 40px;
+            border-radius: 20px;
             overflow: hidden;
+            background: rgba(127, 127, 127, 0.08);
         }
-        /* Exact same box as .rc-log-track (top:0, full width, 6px tall), but
+        /* Exact same box as .rc-log-track (top:0, full width, same height), but
         without overflow:hidden — dots/labels live here instead of inside the
         track so they aren't clipped, while still sharing the track's geometry
         for `top: 50%` / `left: X%` to resolve correctly. */
@@ -165,7 +166,7 @@ def inject_base_css() -> None:
             top: 0;
             left: 0;
             width: 100%;
-            height: 6px;
+            height: 40px;
         }
         .rc-log-fill {
             position: absolute;
@@ -181,14 +182,14 @@ def inject_base_css() -> None:
         }
         .rc-log-tick {
             position: absolute;
-            top: -3px;
+            top: -5px;
             width: 1px;
-            height: 12px;
-            background: rgba(0, 0, 0, 0.35);
+            height: 50px;
+            background: rgba(0, 0, 0, 0.2);
         }
         .rc-log-tick-label {
             position: absolute;
-            top: 12px;
+            top: 46px;
             transform: translateX(-50%);
             font-size: 0.65rem;
             color: rgba(127, 127, 127, 0.8);
@@ -199,11 +200,12 @@ def inject_base_css() -> None:
         .rc-log-dot {
             position: absolute;
             top: 50%;
-            width: 14px;
-            height: 14px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            border: 2px solid #ffffff;
+            border: 4px solid #ffffff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
         }
         .rc-log-dot-label {
             position: absolute;
@@ -222,8 +224,8 @@ def inject_base_css() -> None:
         .rc-log-dot-sub {
             position: absolute;
             top: 50%;
-            width: 10px;
-            height: 10px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             border: 2px solid #ffffff;
@@ -231,7 +233,7 @@ def inject_base_css() -> None:
         }
         .rc-log-dot-label-sub {
             position: absolute;
-            top: 22px;
+            top: 40px;
             transform: translateX(-50%);
             font-size: 0.62rem;
             font-weight: 600;
@@ -364,17 +366,35 @@ def render_asset_section(
             f"</div>",
             unsafe_allow_html=True,
         )
-        st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
+        hero_col, pie_col, bar_col = st.columns([0.55, 0.75, 2.5], gap="small")
+        # All three columns center their content vertically so the hero
+        # stat, the donut, and the bar sit on the same visual midline
+        # instead of the tallest one anchoring everyone else to its top.
+        for col, content_key in ((hero_col, "hero"), (pie_col, "pie"), (bar_col, "bar")):
+            with col:
+                col_key = f"rc-{content_key}col-{key}"
+                with st.container(key=col_key):
+                    st.markdown(
+                        f'<style>.st-key-{col_key} {{ height: 100%; display: flex; '
+                        "flex-direction: column; justify-content: center; }</style>",
+                        unsafe_allow_html=True,
+                    )
+                    if content_key == "hero":
+                        st.markdown(
+                            _hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True
+                        )
+                    elif content_key == "pie":
+                        _render_component_pie(result, theme.accent)
+                    else:
+                        log_bar = _log_scale_bar_html(
+                            result, theme.accent, theme.track_gradient, shared_log_span
+                        )
+                        if log_bar:
+                            st.markdown(log_bar, unsafe_allow_html=True)
 
-        left, right = st.columns([2, 3], gap="medium")
-        with left:
-            breakdown = _breakdown_html(result)
-            if breakdown:
-                st.markdown(breakdown, unsafe_allow_html=True)
-        with right:
-            log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient, shared_log_span)
-            if log_bar:
-                st.markdown(log_bar, unsafe_allow_html=True)
+        breakdown = _breakdown_html(result)
+        if breakdown:
+            st.markdown(breakdown, unsafe_allow_html=True)
 
         st.caption(
             f"Tokenized {label}: {_format_usd(result.tokenized_usd)} / "
@@ -438,6 +458,118 @@ def _hero_html(
     )
 
 
+def _shade(hex_color: str, factor: float) -> str:
+    """Lighten hex_color toward white by factor (0 = unchanged, 1 = white)."""
+    r, g, b = (int(hex_color.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    r, g, b = (round(c + (255 - c) * factor) for c in (r, g, b))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _polar(cx: float, cy: float, r: float, angle: float) -> tuple[float, float]:
+    """Point at `angle` radians clockwise from 12 o'clock, radius r from (cx, cy)."""
+    return (cx + r * math.sin(angle), cy - r * math.cos(angle))
+
+
+def _donut_svg(components: list[dict], accent: str, size: int = 240) -> str:
+    # Hand-rolled SVG instead of a charting library: this needs exact control
+    # over where each label sits relative to the ring (a centered label needs
+    # a radius gap of at least ~half its text width to clear the ring at any
+    # angle) — the same reason the log-scale bar above is raw HTML/CSS rather
+    # than a chart lib fighting its own coordinate conventions.
+    cx = cy = size / 2
+    outer_r, inner_r, label_r = size * 0.26, size * 0.153, size * 0.386
+    gap = 0.02 if len(components) > 1 else 0.0
+    total = sum(c["value"] for c in components) or 1
+    parts: list[str] = []
+    cumulative = 0.0
+    arcs: list[tuple[float, float]] = []
+    for c in components:
+        frac_start = cumulative / total
+        frac_end = (cumulative + c["value"]) / total
+        cumulative += c["value"]
+        a0, a1 = frac_start * 2 * math.pi + gap / 2, frac_end * 2 * math.pi - gap / 2
+        if a1 <= a0:
+            a1 = a0 + 0.001
+        arcs.append((a0, a1))
+        large_arc = 1 if (a1 - a0) > math.pi else 0
+        x1, y1 = _polar(cx, cy, outer_r, a0)
+        x2, y2 = _polar(cx, cy, outer_r, a1)
+        x3, y3 = _polar(cx, cy, inner_r, a1)
+        x4, y4 = _polar(cx, cy, inner_r, a0)
+        parts.append(
+            f'<path d="M {x1:.1f} {y1:.1f} A {outer_r:.1f} {outer_r:.1f} 0 {large_arc} 1 {x2:.1f} {y2:.1f} '
+            f"L {x3:.1f} {y3:.1f} A {inner_r:.1f} {inner_r:.1f} 0 {large_arc} 0 {x4:.1f} {y4:.1f} Z\" "
+            f'fill="{c["color"]}" title="{c["name"]}: {_format_pct(c["pct"])}">'
+            f'<title>{c["name"]}: {_format_pct(c["pct"])}</title></path>'
+        )
+
+    # Large-enough slices get their own label. The rest, if there's more than
+    # one of them, get grouped under a single "Other" label at their combined
+    # midpoint rather than either cluttering the ring with unreadable tiny
+    # labels or silently dropping them — a lone leftover slice is small
+    # enough to just label directly like everything else.
+    small_indices = [i for i, c in enumerate(components) if c["pct"] < 10]
+    labeled_as_other = len(small_indices) >= 2
+    for i, c in enumerate(components):
+        a0, a1 = arcs[i]
+        if c["pct"] >= 10 or (i in small_indices and not labeled_as_other):
+            lx, ly = _polar(cx, cy, label_r, (a0 + a1) / 2)
+            parts.append(
+                f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" dominant-baseline="middle" '
+                f'font-size="{size * 0.037:.1f}" font-weight="700" fill="#444">'
+                f'{c["name"].split()[-1]} {round(c["pct"])}%</text>'
+            )
+    if labeled_as_other:
+        other_pct = sum(components[i]["pct"] for i in small_indices)
+        mid_angle = (arcs[small_indices[0]][0] + arcs[small_indices[-1]][1]) / 2
+        lx, ly = _polar(cx, cy, label_r, mid_angle)
+        parts.append(
+            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" dominant-baseline="middle" '
+            f'font-size="{size * 0.037:.1f}" font-weight="700" fill="#444">'
+            f"Other {round(other_pct)}%</text>"
+        )
+    # Center content gives the hole a reason to exist (otherwise a donut just
+    # reads as an unfinished pie) and restates the headline number so the
+    # chart carries information on its own, not just proportions.
+    parts.append(
+        f'<text x="{cx:.1f}" y="{cy - size * 0.02:.1f}" text-anchor="middle" dominant-baseline="middle" '
+        f'font-size="{size * 0.052:.1f}" font-weight="700" fill="{accent}">{_format_usd(total)}</text>'
+    )
+    parts.append(
+        f'<text x="{cx:.1f}" y="{cy + size * 0.055:.1f}" text-anchor="middle" dominant-baseline="middle" '
+        f'font-size="{size * 0.024:.1f}" fill="#999" letter-spacing="0.5">TOKENIZED</text>'
+    )
+    # width:100% (capped at 340px) and no auto-centering margin: the viewBox
+    # scales ring and text together, so this fills the column on typical
+    # widths without the empty side gutters a smaller fixed/centered size left.
+    return f'<svg viewBox="0 0 {size} {size}" style="width: 100%; max-width: 340px; display: block;">{"".join(parts)}</svg>'
+
+
+def _render_component_pie(result: AssetClassResult, accent: str) -> None:
+    if not result.components:
+        return
+    sorted_components = sorted(result.components, key=lambda c: c.value_usd, reverse=True)
+    n = len(sorted_components)
+    total_value = sum(c.value_usd for c in sorted_components) or 1
+    chart_data = [
+        {
+            "name": c.display_name or c.symbol,
+            "value": c.value_usd,
+            "pct": c.value_usd / total_value * 100,
+            "color": _shade(accent, i / max(n, 1) * 0.7),
+        }
+        for i, c in enumerate(sorted_components)
+    ]
+    if n == 1:
+        st.markdown(
+            f'<div class="rc-breakdown-name" style="text-align:center;">'
+            f"{chart_data[0]['name']} — 100%</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(_donut_svg(chart_data, accent), unsafe_allow_html=True)
+
+
 def _breakdown_html(result: AssetClassResult) -> str | None:
     # Always shown regardless of display mode (%/$/unit) — this is supplementary
     # per-component detail (including what backs each token), not tied to the
@@ -449,6 +581,7 @@ def _breakdown_html(result: AssetClassResult) -> str | None:
     if not result.components:
         return None
     sorted_components = sorted(result.components, key=lambda c: c.value_usd, reverse=True)
+    total_value = sum(c.value_usd for c in sorted_components) or 1
     rows = "".join(
         f'<div class="rc-breakdown-item">'
         f'<div class="rc-breakdown-row">'
@@ -464,7 +597,8 @@ def _breakdown_html(result: AssetClassResult) -> str | None:
             else ""
         )
         + "</span>"
-        f'<span class="rc-breakdown-value">{_format_usd(c.value_usd)}</span>'
+        f'<span class="rc-breakdown-value">{_format_usd(c.value_usd)} '
+        f'({_format_pct(c.value_usd / total_value * 100)})</span>'
         f"</div>"
         + (f'<div class="rc-breakdown-backing">Backed by: {c.backing}</div>' if c.backing else "")
         + "</div>"
@@ -537,8 +671,14 @@ def _log_scale_bar_html(
     step = max(1, math.ceil((k_max - k_min) / _MAX_LOG_TICKS))
     tick_ks = list(range(k_min, k_max, step)) + [k_max]
     ticks_html = "".join(
-        f'<div class="rc-log-tick" style="left: {(log_max + (k - 2) - log_min) / span * 100}%;"></div>'
-        f'<div class="rc-log-tick-label '
+        # No tick line at k_max — it lands exactly on the Total marker/dot
+        # and just doubled it up as a stray line through the dot.
+        (
+            f'<div class="rc-log-tick" style="left: {(log_max + (k - 2) - log_min) / span * 100}%;"></div>'
+            if k != k_max
+            else ""
+        )
+        + f'<div class="rc-log-tick-label '
         f'{_tick_align_class((log_max + (k - 2) - log_min) / span)}" '
         f'style="left: {(log_max + (k - 2) - log_min) / span * 100}%;">{_format_pct(10 ** k)}</div>'
         for k in tick_ks
