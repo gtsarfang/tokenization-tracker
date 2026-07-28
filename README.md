@@ -90,15 +90,23 @@ something scraped live. Update it in `config.py` (with a fresh citation/date) as
 Goldhub estimates are published.
 
 **"vs. investment stock only" (secondary figure)** — the primary total above
-includes jewelry, central-bank reserves, and industrial stock, none of which
-tokenized gold is realistically competing with. The app also shows a narrower
-comparison using only bars, coins, and gold-backed ETFs:
+includes jewelry, central-bank reserves, industrial stock, and privately held
+bars/coins, none of which tokenized gold is realistically competing with — a
+bar in a home safe isn't a substitute product the way an ETF share is. The app
+shows a narrower comparison using **global gold ETF holdings only** (GLD, IAU,
+etc.):
 
-> World Gold Council, Gold Demand Trends Full Year 2024 — bars, coins, and
-> gold-backed ETFs (48,634 t, year-end 2024). Retrieved 2026-07-26.
+> World Gold Council, Gold ETF Holdings & Flows — global gold-backed ETF
+> holdings (4,047 t, end of June 2026). Retrieved 2026-07-28.
+> https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows
 
-This is the actual investable pool tokenized gold competes with, shown
-alongside (not instead of) the primary above-ground-stock percentage.
+This is the closest direct competitor to tokenized gold — both are the same
+basic product (fractional, tradable gold exposure without holding metal) —
+shown alongside (not instead of) the primary above-ground-stock percentage.
+(An earlier version of this figure used a broader "bars, coins & ETFs
+combined" WGC estimate, ~48,634 t — about 12x larger. That mixed in physical
+holdings that aren't really a comparable product to a token; ETF-only is the
+more apples-to-apples comparison.)
 
 ### Silver
 
@@ -141,10 +149,18 @@ figure will see a ~20x difference for reasons that have nothing to do with data
 quality.
 
 **"vs. investment stock only" (secondary figure)** — rather than picking one of
-the two silver totals and hiding the other, the app shows the narrower Silver
-Institute investment-only figure (bars/coins, ~79,000 t) as a secondary
-comparison alongside the primary CPM Group total — the same "investable pool"
-framing used for gold's alternate denominator above.
+the two silver totals and hiding the other, the app shows **global silver
+ETF/ETP holdings only** (SLV, PSLV, etc.) as a secondary comparison alongside
+the primary CPM Group total:
+
+> Silver Institute, global silver ETP holdings (1,276.7M oz, March 2026,
+> ≈39,710 t). Retrieved 2026-07-28.
+
+Same "closest direct competitor" framing as gold's alternate denominator
+above. (An earlier version used the Silver Institute's broader "identifiable
+above-ground stocks" figure, ~79,000 t bars/coins/ETFs combined — about 2x
+larger — for the same reason gold's was narrowed: a bar or coin isn't really
+competing with a token, an ETF share is.)
 
 ### US Treasuries
 

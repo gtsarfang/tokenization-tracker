@@ -68,7 +68,7 @@ class SilverSource:
         spot = self._market_data[spot_token.coingecko_id]
         total_usd = silver.investment_tonnes * TROY_OZ_PER_TONNE * spot.price_usd
         basis_note = (
-            f"{silver.investment_tonnes:,.0f} t investment bars/coins only "
+            f"{silver.investment_tonnes:,.0f} t silver ETF/ETP holdings only "
             f"({silver.investment_source_citation}) @ ${spot.price_usd:,.2f}/oz"
         )
         return TotalValue(value_usd=total_usd, basis_note=basis_note, quality=spot.quality)
@@ -109,11 +109,11 @@ class SilverSource:
             "gold's WGC figure (which *does* include jewelry and industrial "
             f"holdings), this uses the broader estimate: {silver.source_citation}, "
             f"{silver.total_tonnes:,.0f} t total.\n\n"
-            "**Alternate denominator (shown as a secondary figure)** — the "
-            "narrower figure this app avoided using as primary is shown as a "
-            f"comparison instead: {silver.investment_tonnes:,.0f} t of "
-            f"identifiable investment stock ({silver.investment_source_citation}) "
-            "— the pool tokenized silver is actually competing with.\n\n"
+            "**Alternate denominator (shown as a secondary figure)** — same "
+            "reasoning as gold's: a bar or coin isn't really competing with a "
+            f"token, an ETF share is. Shown instead: {silver.investment_tonnes:,.0f} "
+            f"t of global silver ETF/ETP holdings ({silver.investment_source_citation}) "
+            "— the closest direct competitor to tokenized silver.\n\n"
             "Any value that falls back to a manually configured constant "
             "(CoinGecko failure) is marked stale — see the badge above if so.\n\n"
             "**Verification** — like Treasuries, there's no independent on-chain "

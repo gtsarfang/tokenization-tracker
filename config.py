@@ -72,9 +72,14 @@ class GoldConfig:
     total_tonnes: float
     source_citation: str
     tokens: tuple[TokenConfig, ...]
-    # Narrower denominator: bars, coins, and gold-backed ETFs only — the actual
-    # "investable" pool tokenized gold competes with, excluding jewelry,
-    # central-bank reserves, and industrial stock (which `total_tonnes` includes).
+    # Narrower denominator: gold ETF holdings only (GLD, IAU, etc.) — the
+    # closest direct competitor to tokenized gold, since both are the same
+    # basic product (fractional, tradable gold exposure without holding
+    # metal). Deliberately excludes bars/coins (a bar in a home safe isn't
+    # competing with a token the way an ETF share is) as well as jewelry,
+    # central-bank reserves, and industrial stock (which `total_tonnes`
+    # includes) — see README for the earlier, broader definition this
+    # replaced and why.
     investment_tonnes: float = 0.0
     investment_source_citation: str = ""
 
@@ -84,9 +89,9 @@ class SilverConfig:
     total_tonnes: float
     source_citation: str
     tokens: tuple[TokenConfig, ...]
-    # Same narrower "investment stock" denominator as gold, using the Silver
-    # Institute's "identifiable above-ground stocks" figure this app's own
-    # `total_tonnes` deliberately did NOT use (see source_citation above).
+    # Same "ETF/ETP holdings only" denominator as gold, for the same reason:
+    # the closest direct competitor to a tokenized-silver product is a
+    # silver ETF (SLV, PSLV, etc.), not a bar in someone's safe.
     investment_tonnes: float = 0.0
     investment_source_citation: str = ""
 
@@ -189,13 +194,17 @@ _GOLD_CONFIG = GoldConfig(
     # PAXG+XAUT combined) — the same "worth it if not tiny" bar Silver's SLVON
     # was added under.
     tokens=(_PAXG, _XAUT, _KAU),
-    # World Gold Council, Gold Demand Trends Full Year 2024 — bars, coins, and
-    # gold-backed ETFs, year-end 2024 estimate (48,634 tonnes). Retrieved
-    # 2026-07-26. https://www.gold.org/goldhub/research/gold-demand-trends/gold-demand-trends-full-year-2024
-    investment_tonnes=48_634.0,
+    # World Gold Council, Gold ETF Holdings & Flows — global gold-backed ETF
+    # holdings, end of June 2026: 4,047 tonnes (~$526B AUM per WGC's own
+    # reported figure). Retrieved 2026-07-28.
+    # https://www.gold.org/goldhub/data/gold-etfs-holdings-and-flows
+    # Replaces an earlier, broader figure (48,634 t, "bars, coins & gold-backed
+    # ETFs" combined) that mixed in private physical holdings — not really a
+    # comparable product to a token the way an ETF share is. See README.
+    investment_tonnes=4_047.0,
     investment_source_citation=(
-        "World Gold Council, Gold Demand Trends FY2024 — bars, coins & "
-        "gold-backed ETFs (YE2024), retrieved 2026-07-26"
+        "World Gold Council, Gold ETF Holdings & Flows — global gold-backed "
+        "ETF holdings (end of June 2026), retrieved 2026-07-28"
     ),
 )
 
@@ -258,14 +267,15 @@ _SILVER_CONFIG = SilverConfig(
         "comparability with gold's comprehensive WGC total"
     ),
     tokens=(_KAG, _SLVON),
-    # Silver Institute, "identifiable above-ground stocks" (investment bars,
-    # coins, and ETF holdings only) — ~79,000 tonnes, retrieved 2026-07-26.
-    # This is the narrower figure `source_citation` above deliberately avoided
-    # using as the primary denominator; used here as the alternate one instead.
-    investment_tonnes=79_000.0,
+    # Silver Institute, global silver ETP holdings: 1,276.7 million oz as of
+    # March 2026 (~39,710 tonnes). Retrieved 2026-07-28.
+    # Replaces an earlier, broader figure (79,000 t, "identifiable above-ground
+    # stocks" — bars/coins/ETFs combined) for the same reason as gold's: a bar
+    # or coin isn't really competing with a token, an ETF share is. See README.
+    investment_tonnes=39_710.0,
     investment_source_citation=(
-        "Silver Institute, 'identifiable above-ground stocks' (investment "
-        "bars/coins/ETFs only), retrieved 2026-07-26"
+        "Silver Institute, global silver ETP holdings (March 2026, 1,276.7M "
+        "oz), retrieved 2026-07-28"
     ),
 )
 

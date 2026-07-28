@@ -120,7 +120,7 @@ class GoldSource:
         spot = self._market_data[_GOLD_SPOT_PROXY_COINGECKO_ID]
         total_usd = gold.investment_tonnes * TROY_OZ_PER_TONNE * spot.price_usd
         basis_note = (
-            f"{gold.investment_tonnes:,.0f} t bars/coins/ETFs only "
+            f"{gold.investment_tonnes:,.0f} t gold ETF holdings only "
             f"({gold.investment_source_citation}) @ ${spot.price_usd:,.2f}/oz"
         )
         return TotalValue(value_usd=total_usd, basis_note=basis_note, quality=spot.quality)
@@ -165,11 +165,15 @@ class GoldSource:
             f"{TROY_OZ_PER_TONNE:,.4f} troy oz/tonne × spot price, where total "
             f"tonnes ({gold.total_tonnes:,.0f} t) is from: {gold.source_citation}.\n\n"
             "**Alternate denominator (shown as a secondary figure)** — the "
-            "primary total above includes jewelry, central-bank reserves, and "
-            "industrial stock, none of which tokenized gold is realistically "
-            "competing with. A narrower comparison uses only bars, coins, and "
-            f"gold-backed ETFs ({gold.investment_tonnes:,.0f} t, "
-            f"{gold.investment_source_citation}) — the actual investable pool.\n\n"
+            "primary total above includes jewelry, central-bank reserves, "
+            "industrial stock, and privately held bars/coins, none of which "
+            "tokenized gold is realistically competing with — a bar in a home "
+            "safe isn't a substitute product the way an ETF share is. The "
+            "narrower comparison uses only global gold ETF holdings "
+            f"({gold.investment_tonnes:,.0f} t, {gold.investment_source_citation}) "
+            "— the closest direct competitor, since both an ETF and a token "
+            "are the same basic product: fractional, tradable gold exposure "
+            "without holding metal.\n\n"
             "Any value that falls back to a manually configured constant (RPC or "
             "price API failure) is marked stale — see the badge above if so.\n\n"
             f"**Verification** — {onchain_symbols} are each cross-checked "
