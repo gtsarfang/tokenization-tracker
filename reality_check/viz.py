@@ -77,8 +77,10 @@ _ASSET_THEME: dict[str, _Theme] = {
     "silver": _Theme(
         accent="#71797E",
         icon_svg=_coin_icon("#71797E"),
-        # gunmetal -> silver -> near-white, evoking silver tones along the track
-        track_gradient="linear-gradient(90deg, #52585c 0%, #a8adb2 55%, #e8eaec 100%)",
+        # gunmetal -> silver, stopping short of the near-white end this used
+        # to fade to — that end was nearly indistinguishable from the empty
+        # (unfilled) part of the track.
+        track_gradient="linear-gradient(90deg, #4b5157 0%, #8b9096 55%, #b8bcc0 100%)",
     ),
     "treasuries": _Theme(
         accent="#2b6cb0",
@@ -149,7 +151,10 @@ def inject_base_css() -> None:
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
-        .rc-log-wrap { position: relative; margin: 1.3rem 0.25rem 0.3rem 0.25rem; }
+        /* Pushed down with a real top margin — the donut column next to it is
+        taller, and this closes that gap directly instead of relying on a
+        flex/height:100% stretch trick that Streamlit's wrapper divs broke. */
+        .rc-log-wrap { position: relative; margin: 4.5rem 0.25rem 0.3rem 0.25rem; }
         .rc-log-track {
             position: relative;
             height: 40px;
@@ -173,6 +178,15 @@ def inject_base_css() -> None:
             left: 0;
             top: 0;
             height: 100%;
+        }
+        /* Glossy top highlight — a plain flat-color fill read as a static
+        progress rectangle; this is what actually makes it look like a
+        loading bar rather than a bar chart. */
+        .rc-log-fill::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 55%);
         }
         .rc-log-remainder {
             position: absolute;
@@ -366,31 +380,19 @@ def render_asset_section(
             f"</div>",
             unsafe_allow_html=True,
         )
-        hero_col, pie_col, bar_col = st.columns([0.55, 0.75, 2.5], gap="small")
-        # All three columns center their content vertically so the hero
-        # stat, the donut, and the bar sit on the same visual midline
-        # instead of the tallest one anchoring everyone else to its top.
-        for col, content_key in ((hero_col, "hero"), (pie_col, "pie"), (bar_col, "bar")):
-            with col:
-                col_key = f"rc-{content_key}col-{key}"
-                with st.container(key=col_key):
-                    st.markdown(
-                        f'<style>.st-key-{col_key} {{ height: 100%; display: flex; '
-                        "flex-direction: column; justify-content: center; }</style>",
-                        unsafe_allow_html=True,
-                    )
-                    if content_key == "hero":
-                        st.markdown(
-                            _hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True
-                        )
-                    elif content_key == "pie":
-                        _render_component_pie(result, theme.accent)
-                    else:
-                        log_bar = _log_scale_bar_html(
-                            result, theme.accent, theme.track_gradient, shared_log_span
-                        )
-                        if log_bar:
-                            st.markdown(log_bar, unsafe_allow_html=True)
+        # Hero column kept narrow (just wide enough for its text) rather than
+        # wide-and-mostly-empty — that's what was reading as a gap between
+        # the numbers and the donut, even though they're already adjacent
+        # columns.
+        hero_col, pie_col, bar_col = st.columns([0.38, 0.85, 2.4], gap="small")
+        with hero_col:
+            st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
+        with pie_col:
+            _render_component_pie(result, theme.accent)
+        with bar_col:
+            log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient, shared_log_span)
+            if log_bar:
+                st.markdown(log_bar, unsafe_allow_html=True)
 
         breakdown = _breakdown_html(result)
         if breakdown:
