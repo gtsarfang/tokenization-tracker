@@ -17,6 +17,9 @@ from reality_check.sources.treasuries import TreasurySource
 def get_sources(
     config: AppConfig, market_data: dict[str, MarketDataReading]
 ) -> dict[str, AssetClassSource]:
+    # Order is display order (dicts preserve insertion order and the UI renders
+    # them in sequence). Gold and silver lead because their coverage is the most
+    # complete; Treasuries sits last while its component list is still filling in.
     return {
         "gold": GoldSource(config, market_data),
         "silver": SilverSource(config, market_data),

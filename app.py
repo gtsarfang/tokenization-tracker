@@ -22,6 +22,14 @@ from reality_check.storage import get_connection, init_db
 # this data moves fast enough to need refreshing more than once a day.
 _REFRESH_TTL_SECONDS = 24 * 60 * 60
 
+# Shown on the surface, not buried in the per-asset methodology expanders: a
+# figure nobody can source at a glance is a figure nobody reposts. Full
+# citations still live in each section's "How is this calculated?".
+_SOURCES_LINE = (
+    "Sources: CoinGecko · DeFiLlama · on-chain reads · World Gold Council · "
+    "Silver Institute · US Treasury"
+)
+
 
 @st.cache_resource
 def _get_connection(db_path: str) -> sqlite3.Connection:
@@ -65,13 +73,21 @@ def main() -> None:
     sources = registry.get_sources(config, market_data)
 
     viz.inject_base_css()
-    viz.render_header(
-        "Tokenization Tracker",
-        "Tracking how much of each real-world asset class has moved on-chain.",
-    )
 
     results = {name: _load_result(name, source, conn) for name, source in sources.items()}
     shared_log_span = viz.compute_shared_log_span(results.values())
+
+    # Rendered after the data loads (unlike the old static header) because the
+    # band carries the per-asset headline numbers as well as the title — it's the
+    # part of the page meant to be screenshotted and posted on its own, so it
+    # also carries the date and sources that make it citable in isolation.
+    viz.render_hero_band(
+        "Tokenization Tracker",
+        "Tracking how much of each real-world asset class has moved on-chain.",
+        results,
+        sources_line=_SOURCES_LINE,
+        url="https://github.com/gtsarfang/tokenization-tracker",
+    )
 
     # One shared display-mode control for every card, instead of each card having
     # its own independent toggle (which let cards show inconsistent units at once).
@@ -90,6 +106,13 @@ def main() -> None:
             mode=mode or "%",
             shared_log_span=shared_log_span,
         )
+
+    st.caption(
+        "Informational only — not investment advice. Real-world totals are "
+        "published estimates, not exact figures; see each asset class's "
+        "methodology above for sources and known limitations. "
+        "Open source: github.com/gtsarfang/tokenization-tracker"
+    )
 
 
 if __name__ == "__main__":

@@ -30,6 +30,12 @@ from reality_check.models import AssetClassResult, DataQuality
 
 _MAX_LOG_TICKS = 8
 
+# Must match `.streamlit/config.toml`'s backgroundColor — used where an element
+# needs to punch a hole in itself back to the page (dot borders, ring gaps)
+# rather than paint a color of its own.
+_PAGE_BG = "#0b0f19"
+_MUTED_TEXT = "#9aa3b5"
+
 
 @dataclass(frozen=True)
 class _Theme:
@@ -108,27 +114,28 @@ def inject_base_css() -> None:
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(127, 127, 127, 0.1);
+            background: rgba(255, 255, 255, 0.06);
             flex-shrink: 0;
         }
         .rc-icon-badge svg { width: 16px; height: 16px; }
         .rc-card-title { font-size: 1.05rem; font-weight: 700; }
         .rc-hero { margin: 0.05rem 0 0.15rem 0; }
         .rc-hero-pct { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
-        .rc-hero-sub { font-size: 0.76rem; color: rgba(127, 127, 127, 0.9); }
-        .rc-hero-alt { font-size: 0.76rem; color: rgba(127, 127, 127, 0.95); margin-top: 0.15rem; }
+        .rc-hero-sub { font-size: 0.76rem; color: rgba(230, 233, 239, 0.62); }
+        .rc-hero-alt { font-size: 0.76rem; color: rgba(230, 233, 239, 0.62); margin-top: 0.15rem; }
         .rc-breakdown {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 0.6rem 1.2rem;
             margin: 0.5rem 0 0.15rem 0;
             padding: 0.5rem 0.7rem;
-            background: rgba(127, 127, 127, 0.06);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 8px;
         }
         .rc-breakdown-item {
             padding-bottom: 0.3rem;
-            border-bottom: 1px solid rgba(127, 127, 127, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
         .rc-breakdown-row {
             display: flex;
@@ -139,13 +146,13 @@ def inject_base_css() -> None:
         .rc-breakdown-value { font-weight: 600; }
         .rc-breakdown-backing {
             font-size: 0.68rem;
-            color: rgba(127, 127, 127, 0.85);
+            color: rgba(230, 233, 239, 0.5);
             margin-top: 0.1rem;
             line-height: 1.3;
         }
         .rc-scale-caption {
             font-size: 0.62rem;
-            color: rgba(127, 127, 127, 0.65);
+            color: rgba(230, 233, 239, 0.4);
             margin-top: 1.3rem;
             text-align: center;
             text-transform: uppercase;
@@ -154,13 +161,13 @@ def inject_base_css() -> None:
         /* Pushed down with a real top margin — the donut column next to it is
         taller, and this closes that gap directly instead of relying on a
         flex/height:100% stretch trick that Streamlit's wrapper divs broke. */
-        .rc-log-wrap { position: relative; margin: 7rem 0.25rem 0.3rem 0.25rem; }
+        .rc-log-wrap { position: relative; margin: 4.6rem 0.25rem 0.3rem 0.25rem; }
         .rc-log-track {
             position: relative;
             height: 40px;
             border-radius: 20px;
             overflow: hidden;
-            background: rgba(127, 127, 127, 0.08);
+            background: rgba(255, 255, 255, 0.05);
         }
         /* Exact same box as .rc-log-track (top:0, full width, same height), but
         without overflow:hidden — dots/labels live here instead of inside the
@@ -192,21 +199,21 @@ def inject_base_css() -> None:
             position: absolute;
             top: 0;
             height: 100%;
-            background: rgba(127, 127, 127, 0.15);
+            background: rgba(255, 255, 255, 0.09);
         }
         .rc-log-tick {
             position: absolute;
             top: -5px;
             width: 1px;
             height: 50px;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(255, 255, 255, 0.14);
         }
         .rc-log-tick-label {
             position: absolute;
             top: 46px;
             transform: translateX(-50%);
             font-size: 0.65rem;
-            color: rgba(127, 127, 127, 0.8);
+            color: rgba(230, 233, 239, 0.45);
             white-space: nowrap;
         }
         .rc-tick-label-start { transform: translateX(0); }
@@ -218,8 +225,8 @@ def inject_base_css() -> None:
             height: 26px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            border: 4px solid #ffffff;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+            border: 4px solid #0b0f19;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
         }
         .rc-log-dot-label {
             position: absolute;
@@ -242,8 +249,8 @@ def inject_base_css() -> None:
             height: 14px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            border: 2px solid #ffffff;
-            background: rgba(127, 127, 127, 0.6);
+            border: 2px solid #0b0f19;
+            background: rgba(255, 255, 255, 0.45);
         }
         .rc-log-dot-label-sub {
             position: absolute;
@@ -251,46 +258,112 @@ def inject_base_css() -> None:
             transform: translateX(-50%);
             font-size: 0.62rem;
             font-weight: 600;
-            color: rgba(127, 127, 127, 0.85);
+            color: rgba(230, 233, 239, 0.6);
             white-space: nowrap;
         }
         .rc-multiplier-callout {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: rgba(127, 127, 127, 0.9);
-            margin-top: 0.3rem;
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: rgba(230, 233, 239, 0.92);
+            margin-top: 0.5rem;
             text-align: center;
+            letter-spacing: -0.01em;
+        }
+        .rc-multiplier-callout em {
+            font-style: normal;
+            font-size: 1.15rem;
         }
         .rc-stale-badge {
             font-size: 0.75rem;
-            color: #b7791f;
+            color: #f6ad55;
         }
         .rc-manual-tag {
             font-size: 0.62rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.02em;
-            color: rgba(127, 127, 127, 0.9);
-            background: rgba(127, 127, 127, 0.12);
+            color: rgba(230, 233, 239, 0.75);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 4px;
             padding: 0.05rem 0.35rem;
             margin-left: 0.4rem;
             vertical-align: middle;
         }
+        /* The hero band is deliberately designed as a standalone shareable
+        image: a claim, the three numbers behind it, and the date/source line
+        that makes it citable — so a screenshot cropped to this band alone
+        stands up on its own on Twitter/LinkedIn without the rest of the page. */
         .rc-header {
-            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+            background:
+                radial-gradient(900px 320px at 82% -20%, rgba(212, 175, 55, 0.16) 0%, rgba(212, 175, 55, 0) 65%),
+                linear-gradient(135deg, #0e1524 0%, #182131 100%);
             color: #ffffff;
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
+            padding: 1.15rem 1.6rem 0.95rem 1.6rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
             margin-bottom: 0.8rem;
         }
-        .rc-header-title {
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin: 0;
-            letter-spacing: -0.02em;
+        .rc-header-eyebrow {
+            font-size: 0.66rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: #d4af37;
         }
-        .rc-header-sub { font-size: 0.82rem; color: rgba(255, 255, 255, 0.65); margin-top: 0.15rem; }
+        .rc-header-title {
+            font-size: 2.05rem;
+            font-weight: 800;
+            margin: 0.3rem 0 0 0;
+            line-height: 1.14;
+            letter-spacing: -0.03em;
+            max-width: 34ch;
+        }
+        .rc-header-title .rc-hl { color: #d4af37; }
+        .rc-header-sub {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.62);
+            margin-top: 0.35rem;
+        }
+        .rc-tiles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+            margin: 0.95rem 0 0.75rem 0;
+        }
+        .rc-tile {
+            flex: 1 1 150px;
+            max-width: 300px;
+            padding: 0.55rem 0.8rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.045);
+            border-left: 3px solid var(--rc-accent, #8a8a8a);
+        }
+        .rc-tile-label {
+            font-size: 0.63rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.55);
+        }
+        .rc-tile-pct {
+            font-size: 1.75rem;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            color: var(--rc-accent, #ffffff);
+        }
+        .rc-tile-sub { font-size: 0.7rem; color: rgba(255, 255, 255, 0.5); }
+        .rc-header-foot {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 0.3rem 1.2rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.68rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+        .rc-header-foot a { color: rgba(255, 255, 255, 0.6); text-decoration: none; }
         div[data-testid="stAppViewContainer"] .block-container,
         div[data-testid="stAppViewContainer"] .stMainBlockContainer {
             /* Tighter than Streamlit's default, but not so tight that our
@@ -313,7 +386,8 @@ def inject_base_css() -> None:
             overflow-x: hidden;
         }
         @media (max-width: 480px) {
-            .rc-header-title { font-size: 1.3rem; }
+            .rc-header-title { font-size: 1.35rem; }
+            .rc-tile-pct { font-size: 1.25rem; }
             .rc-hero-pct { font-size: 1.2rem; }
             .rc-log-dot-label, .rc-log-dot-label-sub, .rc-log-tick-label {
                 font-size: 0.56rem;
@@ -337,21 +411,49 @@ def inject_base_css() -> None:
     )
 
 
-def render_header(title: str, subtitle: str) -> None:
-    st.markdown(
-        f'<div class="rc-header">'
-        f'<div class="rc-header-title">{title}</div>'
-        f'<div class="rc-header-sub">{subtitle}</div>'
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-
-
 _ASSET_LABELS: dict[str, str] = {
     # Treasuries is specifically US-scoped (US Treasury debt) — spelled out in
     # the label so it's not mistaken for a global figure, unlike Gold/Silver.
     "treasuries": "US Treasuries",
 }
+
+
+def render_hero_band(
+    title: str,
+    subtitle: str,
+    results: dict[str, AssetClassResult],
+    sources_line: str,
+    url: str,
+) -> None:
+    """Title, the per-asset headline numbers, and the date/source line — so a
+    screenshot cropped to this band alone is self-contained and citable without
+    the rest of the page. Deliberately states the numbers and nothing more: any
+    single-sentence summary of them has to pick a denominator and ends up
+    implying a claim about how much of an asset class *should* be on-chain."""
+    as_of = max(r.as_of for r in results.values()) if results else None
+    as_of_line = f"Updated {as_of.strftime('%d %b %Y')}" if as_of else ""
+
+    tiles = "".join(
+        f'<div class="rc-tile" style="--rc-accent: {_ASSET_THEME.get(key, _DEFAULT_THEME).accent};">'
+        f'<div class="rc-tile-label">{_ASSET_LABELS.get(key, key.title())}</div>'
+        f'<div class="rc-tile-pct">{_format_pct(result.pct_tokenized)}</div>'
+        f'<div class="rc-tile-sub">{_format_usd(result.tokenized_usd)} of '
+        f"{_format_usd(result.total.value_usd)}</div>"
+        f"</div>"
+        for key, result in results.items()
+    )
+
+    st.markdown(
+        '<div class="rc-header">'
+        '<div class="rc-header-eyebrow">Real-world assets on-chain</div>'
+        f'<div class="rc-header-title">{title}</div>'
+        f'<div class="rc-header-sub">{subtitle}</div>'
+        f'<div class="rc-tiles">{tiles}</div>'
+        f'<div class="rc-header-foot"><span>{as_of_line} · {sources_line}</span>'
+        f'<span><a href="{url}">{url.split("//")[-1]}</a></span></div>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_asset_section(
@@ -390,7 +492,9 @@ def render_asset_section(
         with pie_col:
             _render_component_pie(result, theme.accent)
         with bar_col:
-            log_bar = _log_scale_bar_html(result, theme.accent, theme.track_gradient, shared_log_span)
+            log_bar = _log_scale_bar_html(
+                result, theme.accent, theme.track_gradient, shared_log_span, label
+            )
             if log_bar:
                 st.markdown(log_bar, unsafe_allow_html=True)
 
@@ -401,6 +505,7 @@ def render_asset_section(
         st.caption(
             f"Tokenized {label}: {_format_usd(result.tokenized_usd)} / "
             f"{_format_usd(result.total.value_usd)} total = {_format_pct(result.pct_tokenized)}"
+            + f" · as of {result.as_of.strftime('%d %b %Y')}"
             + (" ⚠ stale (fallback data in use)" if result.is_stale() else "")
         )
         with st.expander("How is this calculated?"):
@@ -518,7 +623,7 @@ def _donut_svg(components: list[dict], accent: str, size: int = 240) -> str:
             lx, ly = _polar(cx, cy, label_r, (a0 + a1) / 2)
             parts.append(
                 f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" dominant-baseline="middle" '
-                f'font-size="{size * 0.037:.1f}" font-weight="700" fill="#444">'
+                f'font-size="{size * 0.037:.1f}" font-weight="700" fill="#c3cad8">'
                 f'{c["name"].split()[-1]} {round(c["pct"])}%</text>'
             )
     if labeled_as_other:
@@ -527,7 +632,7 @@ def _donut_svg(components: list[dict], accent: str, size: int = 240) -> str:
         lx, ly = _polar(cx, cy, label_r, mid_angle)
         parts.append(
             f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" dominant-baseline="middle" '
-            f'font-size="{size * 0.037:.1f}" font-weight="700" fill="#444">'
+            f'font-size="{size * 0.037:.1f}" font-weight="700" fill="#c3cad8">'
             f"Other {round(other_pct)}%</text>"
         )
     # Center content gives the hole a reason to exist (otherwise a donut just
@@ -539,7 +644,7 @@ def _donut_svg(components: list[dict], accent: str, size: int = 240) -> str:
     )
     parts.append(
         f'<text x="{cx:.1f}" y="{cy + size * 0.055:.1f}" text-anchor="middle" dominant-baseline="middle" '
-        f'font-size="{size * 0.024:.1f}" fill="#999" letter-spacing="0.5">TOKENIZED</text>'
+        f'font-size="{size * 0.024:.1f}" fill="#8b93a7" letter-spacing="0.5">TOKENIZED</text>'
     )
     # width:100% (capped at 340px) and no auto-centering margin: the viewBox
     # scales ring and text together, so this fills the column on typical
@@ -548,7 +653,7 @@ def _donut_svg(components: list[dict], accent: str, size: int = 240) -> str:
     # it's just a ceiling for very wide screens, so growing wider doesn't
     # also grow *taller* past what the (much shorter) bar column needs,
     # which is what caused the whitespace below the bar last time.
-    return f'<svg viewBox="0 0 {size} {size}" style="width: 100%; max-width: 320px; display: block;">{"".join(parts)}</svg>'
+    return f'<svg viewBox="0 0 {size} {size}" style="width: 100%; max-width: 240px; display: block;">{"".join(parts)}</svg>'
 
 
 def _render_component_pie(result: AssetClassResult, accent: str) -> None:
@@ -651,7 +756,11 @@ def compute_shared_log_span(results: Iterable[AssetClassResult]) -> float:
 
 
 def _log_scale_bar_html(
-    result: AssetClassResult, accent: str, track_gradient: str, shared_span: float | None = None
+    result: AssetClassResult,
+    accent: str,
+    track_gradient: str,
+    shared_span: float | None = None,
+    label: str = "",
 ) -> str | None:
     tokenized = result.tokenized_usd
     total = result.total.value_usd
@@ -724,8 +833,9 @@ def _log_scale_bar_html(
         "</div>"
         f"{ticks_html}"
         '<div class="rc-scale-caption">Log scale</div>'
-        f'<div class="rc-multiplier-callout">Total is {_format_multiplier(total / tokenized)} '
-        "larger than what's tokenized</div>"
+        f'<div class="rc-multiplier-callout">There is <em style="color: {accent};">'
+        f"{_format_multiplier(total / tokenized)}</em> more {label.lower()} in the world "
+        "than has been tokenized</div>"
         "</div>"
     )
 
