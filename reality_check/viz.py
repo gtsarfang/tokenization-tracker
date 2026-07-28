@@ -154,7 +154,7 @@ def inject_base_css() -> None:
         /* Pushed down with a real top margin — the donut column next to it is
         taller, and this closes that gap directly instead of relying on a
         flex/height:100% stretch trick that Streamlit's wrapper divs broke. */
-        .rc-log-wrap { position: relative; margin: 4.5rem 0.25rem 0.3rem 0.25rem; }
+        .rc-log-wrap { position: relative; margin: 7rem 0.25rem 0.3rem 0.25rem; }
         .rc-log-track {
             position: relative;
             height: 40px;

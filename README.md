@@ -7,22 +7,23 @@ way are documented, not hidden). **[Live demo](https://tokenization-tracker.stre
 
 How much of a real-world asset class has moved on-chain so far? This app tracks
 tokenization's growth, one asset class at a time: a big headline stat (%, $, or —
-where it makes sense — physical units), then two stacked bars comparing tokenized
-value against the asset class's total real-world value. A linear bar is shown
-first — usually rendering as basically empty, since the tokenized fraction is
-often too small to see (tokenized gold is ~0.02% of all gold) — which is itself
-the demonstration of why a second, log-scale bar follows it: a proper progress-bar
-view (solid fill to "Tokenized," muted to "Total") with labeled ticks and a plain
-"Total is ~6,000x larger..." callout, instead of leaving the scale gap to be
-inferred from a dot's position.
+where it makes sense — physical units), a donut chart showing each tokenizer's
+share of that total, and a log-scale bar comparing tokenized value against the
+asset class's total real-world value — a proper progress-bar view (solid fill to
+"Tokenized," muted to "Total") with labeled ticks and a plain "Total is ~6,000x
+larger..." callout, instead of leaving the scale gap to be inferred from a dot's
+position. The donut labels each tokenizer holding a large-enough share directly
+(ticker + %), groups the rest into a single "Other" slice so the ring doesn't
+turn into unreadable clutter once there are 10+ components, and a full-width grid
+below always shows every tokenizer's exact $ value, %, and backing details —
+nothing is hidden behind a click.
 
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
 **silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
 (BUIDL + USDY + USYC + JTRSY + USTB + OUSG + WTGXX + BENJI + iBENJI + JLTXX +
 CUMIU vs. total US Treasury debt held by the public). Sections stack
-full-width (wide page layout), giving each one room for its breakdown table
-and log-scale bar side by side rather than cramming into a narrow grid
-column.
+full-width (wide page layout), giving each one room for the donut and log-scale
+bar side by side rather than cramming into a narrow grid column.
 
 A fourth card, US private credit (Figure's tokenized HELOC portfolio vs. total
 US private credit market), was built and then removed: the denominator measures
