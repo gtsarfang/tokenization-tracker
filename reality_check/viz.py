@@ -384,7 +384,7 @@ def render_asset_section(
         # wide-and-mostly-empty — that's what was reading as a gap between
         # the numbers and the donut, even though they're already adjacent
         # columns.
-        hero_col, pie_col, bar_col = st.columns([0.38, 0.85, 2.4], gap="small")
+        hero_col, pie_col, bar_col = st.columns([0.38, 0.6, 2.65], gap="small")
         with hero_col:
             st.markdown(_hero_html(result, label, theme.accent, mode, quantity), unsafe_allow_html=True)
         with pie_col:
@@ -544,7 +544,11 @@ def _donut_svg(components: list[dict], accent: str, size: int = 240) -> str:
     # width:100% (capped at 340px) and no auto-centering margin: the viewBox
     # scales ring and text together, so this fills the column on typical
     # widths without the empty side gutters a smaller fixed/centered size left.
-    return f'<svg viewBox="0 0 {size} {size}" style="width: 100%; max-width: 340px; display: block;">{"".join(parts)}</svg>'
+    # Column ratio is now narrow enough that the donut rarely hits this cap —
+    # it's just a ceiling for very wide screens, so growing wider doesn't
+    # also grow *taller* past what the (much shorter) bar column needs,
+    # which is what caused the whitespace below the bar last time.
+    return f'<svg viewBox="0 0 {size} {size}" style="width: 100%; max-width: 320px; display: block;">{"".join(parts)}</svg>'
 
 
 def _render_component_pie(result: AssetClassResult, accent: str) -> None:
