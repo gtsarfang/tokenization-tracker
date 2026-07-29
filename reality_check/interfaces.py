@@ -37,6 +37,13 @@ class AssetClassSource(Protocol):
         asset class, with source citations. Never raises; no network/IO."""
         ...
 
+    def describe_component_quantity(self, component: ComponentValue) -> str | None:
+        """Optional per-token physical-unit readout, e.g. "43.5 t" for a gold
+        token whose quantity is troy ounces. Return None where a component's
+        `quantity` isn't a physical measure (Treasuries' are fund share counts,
+        which would be nonsense shown next to a weight)."""
+        ...
+
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
         """Optional physical-unit readout as (tokenized, total, alt_total) display
         strings, e.g. ("55 t", "216,265 t", "48,634 t") for a commodity measured by

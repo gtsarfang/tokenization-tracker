@@ -5,18 +5,31 @@ actually moved on-chain — and the methodology fights that went into getting
 each number right (undercounts, double-counts, and the wrong turns along the
 way are documented, not hidden). **[Live demo](https://tokenization-tracker.streamlit.app/)**
 
-How much of a real-world asset class has moved on-chain so far? This app tracks
-tokenization's growth, one asset class at a time: a big headline stat (%, $, or —
-where it makes sense — physical units), a donut chart showing each tokenizer's
-share of that total, and a log-scale bar comparing tokenized value against the
-asset class's total real-world value — a proper progress-bar view (solid fill to
-"Tokenized," muted to "Total") with labeled ticks and a plain "Total is ~6,000x
-larger..." callout, instead of leaving the scale gap to be inferred from a dot's
-position. The donut labels each tokenizer holding a large-enough share directly
-(ticker + %), groups the rest into a single "Other" slice so the ring doesn't
-turn into unreadable clutter once there are 10+ components, and a full-width grid
-below always shows every tokenizer's exact $ value, %, and backing details —
-nothing is hidden behind a click.
+How much of a real-world asset class has moved on-chain so far? The page opens
+with the answer to the comparison question — **every asset class as a bar on one
+shared log axis**, so "which is furthest along" is read off bar length instead of
+by mentally diffing three near-identical percentages. That band also carries the
+date and sources, so a screenshot cropped to it alone stands up on its own.
+
+Below it, one section per asset class goes deeper: a donut chart showing each
+tokenizer's share of that class's tokenized total, and a log-scale bar comparing
+tokenized value against the asset class's total real-world value — a proper
+progress-bar view (solid fill to "Tokenized," muted to "Total") with labeled
+ticks and a plain "There is ~6,000x more gold in the world..." callout, instead
+of leaving the scale gap to be inferred from a dot's position. The donut labels
+each tokenizer holding a large-enough share directly (ticker + %), groups the
+rest into a single "Other" slice so the ring doesn't turn into unreadable clutter
+once there are 10+ components, and a full-width grid below always shows every
+tokenizer's exact value, share, and backing details — nothing is hidden behind a
+click.
+
+Every figure on the page carries its own percentage unconditionally; the one
+page-level control switches the **amounts** between dollars and tonnes (asset
+classes with no natural physical unit, like Treasuries, stay in dollars). A
+percentage isn't a display mode competing with the units, because a share and an
+amount answer different questions. Percentages shown against an asset's *total*
+— the log bar's markers — use total as the denominator, matching the axis ticks
+they sit under, so a label never disagrees with its own position on the bar.
 
 Currently covers **gold** (PAXG + XAUT + KAU vs. total above-ground gold value),
 **silver** (KAG + SLVON vs. total above-ground silver value), and **US Treasuries**
@@ -76,7 +89,7 @@ for KAU (id `kinesis-gold`, which also supplies its aggregate supply figure).
 metals-price API. PAXG is redeemable 1:1 for a troy ounce of LBMA-good-delivery gold,
 so its market price is a reasonable live proxy for spot gold, and reuses the price
 call already needed for tokenized value. The same 1:1 relationship also means the
-raw token quantities double as the tokenized *weight* — the "unit" display mode
+raw token quantities double as the tokenized *weight* — the "tonnes" display mode
 sums PAXG + XAUT quantities directly, no extra fetch needed.
 
 **Total above-ground gold value** — `total_tonnes × troy_oz_per_tonne × spot_price`,
@@ -332,7 +345,7 @@ reality_check/
 ├── registry.py        # asset_class slug -> AssetClassSource instance
 ├── orchestrator.py     # source -> calc -> storage glue
 ├── storage.py         # SQLite schema + repository functions
-├── viz.py             # Streamlit card/hero-stat/log-scale-bar rendering
+├── viz.py             # hero comparison chart + per-asset donut/log-bar rendering
 └── sources/
     ├── onchain.py         # shared web3 ERC-20 supply reader
     ├── prices.py          # shared CoinGecko price fetcher + cross-check/consistency helpers
@@ -346,8 +359,12 @@ To add a new asset class (e.g. tokenized real estate):
 
 1. Add a new module in `reality_check/sources/`, implementing the `AssetClassSource`
    Protocol (`asset_class`, `fetch_tokenized()`, `fetch_total()`,
-   `describe_methodology()`, `describe_quantity()`) — see `gold.py` (static total) or
-   `treasuries.py` (live-fetched total) for reference patterns.
+   `describe_methodology()`, `describe_quantity()`,
+   `describe_component_quantity()`) — see `gold.py` (static total) or
+   `treasuries.py` (live-fetched total) for reference patterns. The two
+   `describe_*_quantity` methods drive the dollars/tonnes toggle at the
+   asset-class and per-token level respectively; return `None` from both if the
+   asset class has no natural physical unit, and it stays in dollars.
 2. Add its config (contract addresses / API endpoints / fallback values / static
    totals with citations) to `config.py`.
 3. Register it in `reality_check/registry.py`.

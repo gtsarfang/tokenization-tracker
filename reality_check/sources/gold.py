@@ -189,6 +189,10 @@ class GoldSource:
             "DefiLlama entry tracks Kinesis Money correctly."
         )
 
+    def describe_component_quantity(self, component: ComponentValue) -> str | None:
+        # Same 1:1 token-to-troy-oz approximation describe_quantity relies on.
+        return format_tonnes(component.quantity)
+
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
         # PAXG, XAUT, and KAU are all redeemable ~1:1 for a troy oz of gold, so
         # the token quantities already fetched double as the tokenized weight —

@@ -22,6 +22,12 @@ from reality_check.storage import get_connection, init_db
 # this data moves fast enough to need refreshing more than once a day.
 _REFRESH_TTL_SECONDS = 24 * 60 * 60
 
+# Display label -> the internal mode string viz uses. "tonnes" is the honest
+# label while every unit-capable asset class here is a weight; asset classes
+# without one (Treasuries) fall back to dollars on their own.
+_UNIT_MODES = {"$": "$", "tonnes": "unit"}
+_DEFAULT_UNIT = "$"
+
 # Shown on the surface, not buried in the per-asset methodology expanders: a
 # figure nobody can source at a glance is a figure nobody reposts. Full
 # citations still live in each section's "How is this calculated?".
@@ -77,34 +83,51 @@ def main() -> None:
     results = {name: _load_result(name, source, conn) for name, source in sources.items()}
     shared_log_span = viz.compute_shared_log_span(results.values())
 
+    # Read from session state rather than from the widget's return value: the
+    # widget is created *below* the hero band (where it belongs visually), but
+    # the band's comparison chart is what it drives, so its value is needed
+    # first. Absent on the very first run, before the widget exists — hence the
+    # same default the widget itself declares.
+    mode = _UNIT_MODES[st.session_state.get("unit_mode") or _DEFAULT_UNIT]
+
     # Rendered after the data loads (unlike the old static header) because the
-    # band carries the per-asset headline numbers as well as the title — it's the
-    # part of the page meant to be screenshotted and posted on its own, so it
-    # also carries the date and sources that make it citable in isolation.
+    # band carries the comparison chart as well as the title — it's the part of
+    # the page meant to be screenshotted and posted on its own, so it also
+    # carries the date and sources that make it citable in isolation.
     viz.render_hero_band(
         "Tokenization Tracker",
         "Tracking how much of each real-world asset class has moved on-chain.",
         results,
         sources_line=_SOURCES_LINE,
         url="https://github.com/gtsarfang/tokenization-tracker",
+        mode=mode,
+        quantities={name: source.describe_quantity(results[name]) for name, source in sources.items()},
     )
 
-    # One shared display-mode control for every card, instead of each card having
-    # its own independent toggle (which let cards show inconsistent units at once).
-    mode = st.segmented_control("Display as", ["%", "$", "unit"], default="%", key="global_mode")
+    # One shared unit control, rather than one per card (which let cards show
+    # inconsistent units at once). Percentages aren't an option here: every
+    # figure on the page carries its own share unconditionally, so the only
+    # choice worth offering is what unit the amounts are in.
+    st.segmented_control(
+        "Amounts in", list(_UNIT_MODES), default=_DEFAULT_UNIT, key="unit_mode"
+    )
 
     # Stacked full-width sections rather than a 3-per-row card grid — with only
     # three asset classes, narrow cards left a lot of empty space; a section per
     # asset uses the width for the log-scale bar instead of cramming it.
     for name, source in sources.items():
-        result = results[name]
         viz.render_asset_section(
-            result,
+            results[name],
             key=name,
             methodology=source.describe_methodology(),
-            quantity=source.describe_quantity(result),
-            mode=mode or "%",
             shared_log_span=shared_log_span,
+            mode=mode,
+            quantity=source.describe_quantity(results[name]),
+            component_units={
+                c.symbol: unit
+                for c in results[name].components
+                if (unit := source.describe_component_quantity(c)) is not None
+            },
         )
 
     st.caption(

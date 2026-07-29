@@ -129,6 +129,10 @@ class SilverSource:
             "~$191M market cap) — not wired in as a live check, but reassuring."
         )
 
+    def describe_component_quantity(self, component: ComponentValue) -> str | None:
+        # Same 1:1 token-to-troy-oz approximation describe_quantity relies on.
+        return format_tonnes(component.quantity)
+
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
         # Both KAG (direct redemption) and SLVON (an ETF share designed to track
         # ~1 oz of silver each) are close enough to 1:1 with a troy oz that the

@@ -197,5 +197,8 @@ class TreasurySource:
             "what actually settled which source to trust."
         )
 
+    def describe_component_quantity(self, component: ComponentValue) -> str | None:
+        return None  # component quantities are fund/token counts, not a weight
+
     def describe_quantity(self, result: AssetClassResult) -> tuple[str, str, str | None] | None:
         return None  # no natural physical unit for Treasuries
